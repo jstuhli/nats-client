@@ -1,0 +1,54 @@
+{
+    "name": "matkomat/nats-client",
+    "description": "Modern PHP 8.5 client for NATS messaging system with JetStream, KeyValue, ObjectStore, and Micro service support",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "nats",
+        "nats-client",
+        "jetstream",
+        "messaging",
+        "pubsub",
+        "keyvalue",
+        "objectstore",
+        "microservices",
+        "php85"
+    ],
+    "homepage": "https://github.com/matkomat/nats-client",
+    "authors": [
+        {
+            "name": "Matko Mandelinic",
+            "homepage": "https://github.com/matkomat"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/matkomat/nats-client/issues",
+        "source": "https://github.com/matkomat/nats-client"
+    },
+    "require": {
+        "php": ">=8.5",
+        "ext-sodium": "*"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.94",
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "suggest": {
+        "psr/log": "For PSR-3 logging support"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nats\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nats\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable"
+}

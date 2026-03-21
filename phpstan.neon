@@ -1,0 +1,25 @@
+parameters:
+    level: max
+    paths:
+        - src
+    ignoreErrors:
+        # ConsumeContext::run() — PHPStan sees $stopped as false because the while(!$this->stopped)
+        # loop just passed. But the handler callback on line 67 can call $ctx->stop() which mutates
+        # $this->stopped mid-iteration. Same for the error handler on line 79.
+        -
+            identifier: if.alwaysFalse
+            count: 1
+            path: src/JetStream/Consumer/ConsumeContext.php
+        -
+            identifier: booleanOr.rightAlwaysFalse
+            count: 1
+            path: src/JetStream/Consumer/ConsumeContext.php
+
+        # PubAckFuture::ok() — the null checks after Fiber::suspend() look redundant to PHPStan
+        # because $result/$error were null before the suspend. But during suspension, the event loop
+        # processes NATS replies and the async subscription callback calls resolve()/reject(),
+        # setting $result or $error to non-null before the Fiber resumes.
+        -
+            identifier: notIdentical.alwaysFalse
+            count: 2
+            path: src/JetStream/Publish/PubAckFuture.php
