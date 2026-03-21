@@ -71,42 +71,54 @@ $conn->close();
 
 ## Examples
 
-```
-docs/examples/
-├── core/
-│   ├── 01-connect.php           # Connection variants (default, URL, cluster, options)
-│   ├── 02-auth.php              # User/pass, token, NKey, JWT, TLS
-│   ├── 03-pub-sub.php           # Publish, subscribe (async/sync), wildcards, queue groups
-│   ├── 04-request-reply.php     # Synchronous RPC, request with headers
-│   ├── 05-headers.php           # Set/get/iterate headers, wire format
-│   ├── 06-events-reconnect.php  # Event handlers, reconnect config, custom backoff, forceReconnect
-│   ├── 07-connection-info.php   # RTT, addresses, client info, serverInfo, server pool, barrier
-│   ├── 08-subscriptions-advanced.php  # Pending limits, max pending, queued msgs, closed handler
-│   ├── 09-error-handling.php    # Exception hierarchy, no-responders, JetStream errors, retry
-│   ├── 10-safeguards.php        # Max payload, subject validation, slow consumer detection
-│   └── 11-graceful-shutdown.php # Drain vs close, lame duck, signal handling, status transitions
-│
-├── jetstream/
-│   ├── 01-streams.php           # Create, info, getMessage, purge, list, delete
-│   ├── 02-consumers.php         # Pull fetch/next/messages/consume, ConsumeContext, ordered, ACK variants
-│   ├── 03-publish.php           # Deduplication, optimistic concurrency, async publish
-│   ├── 04-streams-advanced.php  # CreateOrUpdate, streamNameBySubject, secureDelete, mirrors, sources, subject transforms
-│   ├── 05-consumers-advanced.php  # Pause/resume, push consumers, backoff, fetchBytes, headersOnly
-│   ├── 06-publish-advanced.php  # Async lifecycle, msgTtl, expectLastMsgId, stallWait, publishMessage
-│   └── 07-direct-get.php       # Direct message access, account info, fast lookups
-│
-├── keyvalue/
-│   ├── 01-basic.php             # Put/get/create/update/delete/purge, history, listKeys, status
-│   ├── 02-watch.php             # Real-time watching, patterns, updatesOnly, includeHistory
-│   └── 03-advanced.php          # getRevision, keyTtl, listKeysFiltered, watchFiltered, bucket management
-│
-├── objectstore/
-│   ├── 01-basic.php             # Put bytes/string/file, get, delete, list, metadata, status
-│   └── 02-advanced.php          # getInfo, addLink, addBucketLink, seal, watch, showDeleted, compression
-│
-└── micro/
-    └── 01-service.php           # Endpoints, groups, discovery, handler classes, statistics
-```
+### Core
+
+| Example | Description |
+|---------|-------------|
+| [01-connect.php](docs/examples/core/01-connect.php) | Connection variants (default, URL, cluster, options) |
+| [02-auth.php](docs/examples/core/02-auth.php) | User/pass, token, NKey, JWT, TLS |
+| [03-pub-sub.php](docs/examples/core/03-pub-sub.php) | Publish, subscribe (async/sync), wildcards, queue groups |
+| [04-request-reply.php](docs/examples/core/04-request-reply.php) | Synchronous RPC, request with headers |
+| [05-headers.php](docs/examples/core/05-headers.php) | Set/get/iterate headers, wire format |
+| [06-events-reconnect.php](docs/examples/core/06-events-reconnect.php) | Event handlers, reconnect config, custom backoff, forceReconnect |
+| [07-connection-info.php](docs/examples/core/07-connection-info.php) | RTT, addresses, client info, serverInfo, server pool, barrier |
+| [08-subscriptions-advanced.php](docs/examples/core/08-subscriptions-advanced.php) | Pending limits, max pending, queued msgs, closed handler |
+| [09-error-handling.php](docs/examples/core/09-error-handling.php) | Exception hierarchy, no-responders, JetStream errors, retry |
+| [10-safeguards.php](docs/examples/core/10-safeguards.php) | Max payload, subject validation, slow consumer detection |
+| [11-graceful-shutdown.php](docs/examples/core/11-graceful-shutdown.php) | Drain vs close, lame duck, signal handling, status transitions |
+
+### JetStream
+
+| Example | Description |
+|---------|-------------|
+| [01-streams.php](docs/examples/jetstream/01-streams.php) | Create, info, getMessage, purge, list, delete |
+| [02-consumers.php](docs/examples/jetstream/02-consumers.php) | Pull fetch/next/messages/consume, ConsumeContext, ordered, ACK variants |
+| [03-publish.php](docs/examples/jetstream/03-publish.php) | Deduplication, optimistic concurrency, async publish |
+| [04-streams-advanced.php](docs/examples/jetstream/04-streams-advanced.php) | CreateOrUpdate, streamNameBySubject, secureDelete, mirrors, sources, subject transforms |
+| [05-consumers-advanced.php](docs/examples/jetstream/05-consumers-advanced.php) | Pause/resume, push consumers, backoff, fetchBytes, headersOnly |
+| [06-publish-advanced.php](docs/examples/jetstream/06-publish-advanced.php) | Async lifecycle, msgTtl, expectLastMsgId, stallWait, publishMessage |
+| [07-direct-get.php](docs/examples/jetstream/07-direct-get.php) | Direct message access, account info, fast lookups |
+
+### Key-Value
+
+| Example | Description |
+|---------|-------------|
+| [01-basic.php](docs/examples/keyvalue/01-basic.php) | Put/get/create/update/delete/purge, history, listKeys, status |
+| [02-watch.php](docs/examples/keyvalue/02-watch.php) | Real-time watching, patterns, updatesOnly, includeHistory |
+| [03-advanced.php](docs/examples/keyvalue/03-advanced.php) | getRevision, keyTtl, listKeysFiltered, watchFiltered, bucket management |
+
+### Object Store
+
+| Example | Description |
+|---------|-------------|
+| [01-basic.php](docs/examples/objectstore/01-basic.php) | Put bytes/string/file, get, delete, list, metadata, status |
+| [02-advanced.php](docs/examples/objectstore/02-advanced.php) | getInfo, addLink, addBucketLink, seal, watch, showDeleted, compression |
+
+### Micro Services
+
+| Example | Description |
+|---------|-------------|
+| [01-service.php](docs/examples/micro/01-service.php) | Endpoints, groups, discovery, handler classes, statistics |
 
 ### Core — Connect
 
