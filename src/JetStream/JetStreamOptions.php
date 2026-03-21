@@ -12,6 +12,8 @@ readonly class JetStreamOptions
         public float $timeout = 5.0,
         public int $publishAsyncMaxPending = 4096,
         public ?\Closure $publishAsyncErrHandler = null,
+        public int $apiRetries = 0,
+        public float $apiRetryWait = 0.25,
     ) {}
 
     public function apiSubject(string $operation): string

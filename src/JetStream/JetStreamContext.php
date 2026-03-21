@@ -565,14 +565,40 @@ final class JetStreamContext
         $subject = $this->options->apiSubject($operation);
         $data = $payload !== null ? json_encode($payload, JSON_THROW_ON_ERROR) : '';
 
-        $reply = $this->conn->request($subject, $data, $this->options->timeout);
-        $response = T::stringKeyArray(json_decode($reply->data, true, 512, JSON_THROW_ON_ERROR));
+        $lastError = null;
+        $maxAttempts = 1 + $this->options->apiRetries;
 
-        if (isset($response['error'])) {
-            throw JetStreamException::fromApiResponse($response);
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            if ($attempt > 0) {
+                usleep((int) ($this->options->apiRetryWait * 1_000_000));
+            }
+
+            try {
+                $reply = $this->conn->request($subject, $data, $this->options->timeout);
+                $response = T::stringKeyArray(json_decode($reply->data, true, 512, JSON_THROW_ON_ERROR));
+
+                if (isset($response['error'])) {
+                    $exception = JetStreamException::fromApiResponse($response);
+                    // Only retry on transient server errors (5xx codes)
+                    if ($exception->apiError !== null && $exception->apiError->code >= 500 && $attempt < $maxAttempts - 1) {
+                        $lastError = $exception;
+                        continue;
+                    }
+                    throw $exception;
+                }
+
+                return $response;
+            } catch (JetStreamException $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                $lastError = $e;
+                if ($attempt >= $maxAttempts - 1) {
+                    throw $e;
+                }
+            }
         }
 
-        return $response;
+        throw $lastError ?? new NatsException('JetStream API request failed');
     }
 
     // --- Private helpers ---
