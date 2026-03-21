@@ -394,6 +394,9 @@ final class Connection
     {
         $url = $this->serverPool[$this->currentServerIndex] ?? '';
         $parsed = parse_url($url);
+        if ($parsed === false) {
+            return '127.0.0.1:4222';
+        }
         $host = $parsed['host'] ?? '127.0.0.1';
         $port = $parsed['port'] ?? 4222;
         return "{$host}:{$port}";
@@ -554,6 +557,9 @@ final class Connection
     private function connectToServer(string $url): void
     {
         $parsed = parse_url($url);
+        if ($parsed === false) {
+            throw new NatsException("Invalid server URL: {$url}");
+        }
         $host = $parsed['host'] ?? '127.0.0.1';
         $port = $parsed['port'] ?? 4222;
         $scheme = $parsed['scheme'] ?? 'nats';
@@ -663,7 +669,7 @@ final class Connection
         // URL-embedded credentials
         $url = $this->serverPool[$this->currentServerIndex] ?? '';
         $parsed = parse_url($url);
-        if (isset($parsed['user']) && $auth === null) {
+        if ($parsed !== false && isset($parsed['user']) && $auth === null) {
             $payload['user'] = $parsed['user'];
             if (isset($parsed['pass'])) {
                 $payload['pass'] = $parsed['pass'];
