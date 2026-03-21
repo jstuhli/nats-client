@@ -61,9 +61,15 @@ final class JetStreamContext
 
     public function createOrUpdateStream(StreamConfig $config): StreamInterface
     {
-        $data = $this->apiRequest('STREAM.CREATE.' . $config->name, $config->toArray());
-        $info = StreamInfo::fromArray($data);
-        return new Stream($this, $config->name, $info);
+        try {
+            return $this->createStream($config);
+        } catch (JetStreamException $e) {
+            // Error code 10058: stream name already in use
+            if ($e->apiError?->errCode === 10058) {
+                return $this->updateStream($config);
+            }
+            throw $e;
+        }
     }
 
     public function stream(string $name): StreamInterface
