@@ -52,12 +52,89 @@ final class ObjectStore implements ObjectStoreInterface
         if (!is_readable($filePath)) {
             throw new NatsException("File not readable: {$filePath}");
         }
-        $data = file_get_contents($filePath);
-        if ($data === false) {
-            throw new NatsException("Failed to read file: {$filePath}");
+
+        $handle = fopen($filePath, 'rb');
+        if ($handle === false) {
+            throw new NatsException("Failed to open file: {$filePath}");
         }
-        $name = basename($filePath);
-        return $this->putRaw($name, $data);
+
+        try {
+            return $this->putStream(basename($filePath), $handle);
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Upload data from a stream resource, reading in chunks to avoid loading the entire content into memory.
+     *
+     * @param string $name Object name
+     * @param resource $stream Readable stream resource
+     */
+    public function putStream(string $name, mixed $stream): ObjectInfo
+    {
+        $chunkSize = $this->chunkSize;
+
+        // Purge old chunks if overwriting
+        try {
+            $existing = $this->getObjectInfo($name);
+            if (!$existing->deleted && $existing->nuid !== '') {
+                $jsStream = $this->js->stream("OBJ_{$this->bucketName}");
+                $jsStream->purge(new \Nats\JetStream\Stream\StreamPurgeOptions(
+                    filter: "\$O.{$this->bucketName}.C.{$existing->nuid}",
+                ));
+            }
+        } catch (\Throwable) {
+            // Object doesn't exist yet
+        }
+
+        $nuid = Inbox::nuid();
+        $chunkSubject = "\$O.{$this->bucketName}.C.{$nuid}";
+        $hashCtx = hash_init('sha256');
+        $totalSize = 0;
+        $chunks = 0;
+
+        while (!feof($stream)) {
+            $chunk = fread($stream, $chunkSize);
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            hash_update($hashCtx, $chunk);
+            $this->js->publish($chunkSubject, $chunk);
+            $totalSize += strlen($chunk);
+            $chunks++;
+        }
+
+        if ($chunks === 0) {
+            $this->js->publish($chunkSubject, '');
+            $chunks = 1;
+        }
+
+        $digest = 'SHA-256=' . base64_encode(hash_final($hashCtx, true));
+
+        $info = new ObjectInfo(
+            name: $name,
+            bucket: $this->bucketName,
+            nuid: $nuid,
+            size: $totalSize,
+            chunks: $chunks,
+            digest: $digest,
+            deleted: false,
+            mtime: new \DateTimeImmutable(),
+        );
+
+        $metaSubject = "\$O.{$this->bucketName}.M.{$this->encodeName($name)}";
+        $metaHeaders = new Headers();
+        $metaHeaders->set('Nats-Rollup', 'sub');
+
+        $msg = new Message(
+            subject: $metaSubject,
+            data: json_encode($info->toArray(), JSON_THROW_ON_ERROR),
+            headers: $metaHeaders,
+        );
+        $this->js->publishMessage($msg);
+
+        return $info;
     }
 
     public function get(string $name): ObjectResult

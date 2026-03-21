@@ -17,6 +17,9 @@ interface ObjectStoreInterface
 
     public function putFile(string $filePath): ObjectInfo;
 
+    /** @param resource $stream Readable stream resource */
+    public function putStream(string $name, mixed $stream): ObjectInfo;
+
     public function get(string $name): ObjectResult;
 
     public function getBytes(string $name): string;
