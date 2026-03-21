@@ -70,7 +70,8 @@ final class ConnectionOptions
     private bool $permissionErrOnSubscribe = false;
 
     // Logging
-    private ?object $logger = null; // PSR-3 LoggerInterface
+    /** @var \Psr\Log\LoggerInterface|null */
+    private ?object $logger = null;
 
     public function servers(string ...$urls): self
     {
@@ -314,6 +315,9 @@ final class ConnectionOptions
         return $this;
     }
 
+    /**
+     * @param \Psr\Log\LoggerInterface $logger
+     */
     public function logger(object $logger): self
     {
         $this->logger = $logger;
@@ -455,6 +459,7 @@ final class ConnectionOptions
     public function isIgnoreDiscoveredServers(): bool { return $this->ignoreDiscoveredServers; }
     public function getInboxPrefix(): string { return $this->inboxPrefix; }
     public function isCompression(): bool { return $this->compression; }
+    /** @return \Psr\Log\LoggerInterface|null */
     public function getLogger(): ?object { return $this->logger; }
     public function isNoCallbacksAfterClientClose(): bool { return $this->noCallbacksAfterClientClose; }
     public function isSkipHostLookup(): bool { return $this->skipHostLookup; }
