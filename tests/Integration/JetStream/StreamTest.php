@@ -198,6 +198,63 @@ final class StreamTest extends TestCase
         $this->js->stream('TEST_STREAM');
     }
 
+    public function testCreateOrUpdateStreamCreatesNewStream(): void
+    {
+        $stream = $this->js->createOrUpdateStream(new StreamConfig(
+            name: 'TEST_STREAM',
+            subjects: ['test.stream.>'],
+            storage: StorageType::Memory,
+            description: 'Created via createOrUpdate',
+        ));
+
+        $info = $stream->cachedInfo();
+        self::assertSame('TEST_STREAM', $info->config->name);
+        self::assertSame(['test.stream.>'], $info->config->subjects);
+        self::assertSame('Created via createOrUpdate', $info->config->description);
+    }
+
+    public function testCreateOrUpdateStreamUpdatesExistingStream(): void
+    {
+        // First, create the stream
+        $this->js->createStream(new StreamConfig(
+            name: 'TEST_STREAM',
+            subjects: ['test.stream.>'],
+            storage: StorageType::Memory,
+            description: 'Original description',
+        ));
+
+        // Now createOrUpdate should update (not throw)
+        $stream = $this->js->createOrUpdateStream(new StreamConfig(
+            name: 'TEST_STREAM',
+            subjects: ['test.stream.>'],
+            storage: StorageType::Memory,
+            description: 'Updated description',
+        ));
+
+        $info = $stream->cachedInfo();
+        self::assertSame('TEST_STREAM', $info->config->name);
+        self::assertSame('Updated description', $info->config->description);
+    }
+
+    public function testCreateOrUpdateStreamRethrowsNonDuplicateErrors(): void
+    {
+        // Create a stream that occupies certain subjects
+        $this->js->createStream(new StreamConfig(
+            name: 'TEST_STREAM',
+            subjects: ['test.stream.>'],
+            storage: StorageType::Memory,
+        ));
+
+        // Creating a different stream with overlapping subjects should throw
+        // errCode 10065 (subjects overlap), which is NOT 10058 (duplicate name)
+        $this->expectException(JetStreamException::class);
+        $this->js->createOrUpdateStream(new StreamConfig(
+            name: 'TEST_STREAM2',
+            subjects: ['test.stream.>'],
+            storage: StorageType::Memory,
+        ));
+    }
+
     public function testStreamWithOptions(): void
     {
         $stream = $this->js->createStream(new StreamConfig(
