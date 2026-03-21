@@ -30,6 +30,9 @@ final class ObjectStore implements ObjectStoreInterface
         $this->chunkSize = $chunkSize;
     }
 
+    /**
+     * @throws NatsException If the operation fails
+     */
     public function put(ObjectMeta $meta, mixed $data): ObjectInfo
     {
         $content = is_resource($data) ? stream_get_contents($data) : (string) $data;
@@ -47,6 +50,9 @@ final class ObjectStore implements ObjectStoreInterface
         return $this->putRaw($name, $data);
     }
 
+    /**
+     * @throws NatsException If the file is not readable or the operation fails
+     */
     public function putFile(string $filePath): ObjectInfo
     {
         if (!is_readable($filePath)) {
@@ -60,6 +66,9 @@ final class ObjectStore implements ObjectStoreInterface
         return $this->putRaw($name, $data);
     }
 
+    /**
+     * @throws NatsException If the object is not found, deleted, or is a cross-bucket link
+     */
     public function get(string $name): ObjectResult
     {
         $info = $this->getObjectInfo($name);
@@ -125,6 +134,9 @@ final class ObjectStore implements ObjectStoreInterface
         return $info;
     }
 
+    /**
+     * @throws NatsException If the object is not found or the operation fails
+     */
     public function delete(string $name): void
     {
         $info = $this->getObjectInfo($name);

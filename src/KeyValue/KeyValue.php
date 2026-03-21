@@ -21,6 +21,9 @@ final class KeyValue implements KeyValueInterface
         private readonly string $bucketName,
     ) {}
 
+    /**
+     * @throws NatsException If the key is invalid or the operation fails
+     */
     public function put(string $key, string $value): int
     {
         $this->validateKey($key);
@@ -29,6 +32,9 @@ final class KeyValue implements KeyValueInterface
         return (int) $ack->sequence;
     }
 
+    /**
+     * @throws NatsException If the key is not found or has been deleted
+     */
     public function get(string $key): KeyValueEntry
     {
         $this->validateKey($key);
@@ -66,6 +72,9 @@ final class KeyValue implements KeyValueInterface
         );
     }
 
+    /**
+     * @throws NatsException If the key or revision is not found
+     */
     public function getRevision(string $key, int $revision): KeyValueEntry
     {
         $this->validateKey($key);
