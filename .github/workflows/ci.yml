@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start NATS with JetStream
+        run: |
+          docker run -d --name nats \
+            -p 4222:4222 -p 8222:8222 \
+            nats:latest -js -sd /data -m 8222
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8222/healthz > /dev/null 2>&1; then
+              echo "NATS is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: sodium
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Check coding style
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+
+      - name: Static analysis
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Unit tests
+        run: vendor/bin/phpunit --testsuite=unit
+
+      - name: Integration tests
+        run: vendor/bin/phpunit --testsuite=integration
