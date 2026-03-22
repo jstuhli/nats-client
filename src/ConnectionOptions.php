@@ -78,7 +78,30 @@ final readonly class ConnectionOptions
 
         // Logging
         public ?object $logger = null,
-    ) {}
+    ) {
+        /** @var mixed $server */
+        foreach ($this->servers as $i => $server) {
+            if (!is_string($server)) {
+                throw new \InvalidArgumentException("servers[{$i}] must be a string");
+            }
+        }
+
+        /** @var mixed $file */
+        foreach ($this->tlsCaFiles as $i => $file) {
+            if (!is_string($file)) {
+                throw new \InvalidArgumentException("tlsCaFiles[{$i}] must be a string");
+            }
+        }
+
+        if ($this->logger !== null) {
+            $loggerInterface = \Psr\Log\LoggerInterface::class;
+            if (!interface_exists($loggerInterface) || !is_subclass_of($this->logger, $loggerInterface)) {
+                throw new \InvalidArgumentException(
+                    "Logger must implement {$loggerInterface} (install psr/log to use logger support)"
+                );
+            }
+        }
+    }
 
     // --- Withers ---
 

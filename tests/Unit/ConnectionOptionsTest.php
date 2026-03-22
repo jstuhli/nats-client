@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ConnectionOptionsTest extends TestCase
 {
-    public function testLoggerRequiresPsrLoggerInterface(): void
+    public function testLoggerRequiresPsrLoggerInterfaceViaWither(): void
     {
         $opts = new ConnectionOptions();
 
@@ -19,6 +19,30 @@ final class ConnectionOptionsTest extends TestCase
         $this->expectExceptionMessage('Logger must implement Psr\\Log\\LoggerInterface');
 
         $opts->withLogger(new class {});
+    }
+
+    public function testLoggerRequiresPsrLoggerInterfaceViaConstructor(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Logger must implement Psr\\Log\\LoggerInterface');
+
+        new ConnectionOptions(logger: new class {});
+    }
+
+    public function testServersRejectsNonStringElements(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('servers[0] must be a string');
+
+        new ConnectionOptions(servers: [123]); // @phpstan-ignore argument.type
+    }
+
+    public function testTlsCaFilesRejectsNonStringElements(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('tlsCaFiles[0] must be a string');
+
+        new ConnectionOptions(tlsCaFiles: [123]); // @phpstan-ignore argument.type
     }
 
     public function testLoggerAcceptsPsrLoggerInterface(): void
