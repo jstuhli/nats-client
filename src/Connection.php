@@ -58,6 +58,8 @@ final class Connection
 
     /**
      * @param string|list<string> $url
+     * @throws NatsException If unable to connect to any NATS server
+     * @throws AuthorizationException If authentication fails
      */
     public static function connect(
         string|array $url = 'nats://127.0.0.1:4222',
@@ -96,6 +98,10 @@ final class Connection
 
     // --- Publishing ---
 
+    /**
+     * @throws NatsException If not connected or subject is invalid
+     * @throws MaxPayloadException If data exceeds server max payload
+     */
     public function publish(string $subject, string $data = '', ?string $replyTo = null): void
     {
         $this->ensureConnected();
@@ -108,6 +114,10 @@ final class Connection
         $this->outBytes += strlen($data);
     }
 
+    /**
+     * @throws NatsException If not connected, subject is invalid, or headers not supported
+     * @throws MaxPayloadException If message exceeds server max payload
+     */
     public function publishMessage(Message $msg): void
     {
         $this->ensureConnected();
@@ -132,21 +142,33 @@ final class Connection
 
     // --- Subscribing ---
 
+    /**
+     * @throws NatsException If not connected or subject is invalid
+     */
     public function subscribe(string $subject, \Closure $handler): Subscription
     {
         return $this->doSubscribe($subject, null, $handler);
     }
 
+    /**
+     * @throws NatsException If not connected or subject is invalid
+     */
     public function subscribeSync(string $subject): Subscription
     {
         return $this->doSubscribe($subject, null, null);
     }
 
+    /**
+     * @throws NatsException If not connected or subject is invalid
+     */
     public function queueSubscribe(string $subject, string $queue, \Closure $handler): Subscription
     {
         return $this->doSubscribe($subject, $queue, $handler);
     }
 
+    /**
+     * @throws NatsException If not connected or subject is invalid
+     */
     public function queueSubscribeSync(string $subject, string $queue): Subscription
     {
         return $this->doSubscribe($subject, $queue, null);
@@ -154,6 +176,10 @@ final class Connection
 
     // --- Request-Reply ---
 
+    /**
+     * @throws NatsException If not connected, no responders, or subject is invalid
+     * @throws TimeoutException If no response received within timeout
+     */
     public function request(string $subject, string $data = '', float $timeout = 2.0): Message
     {
         $inbox = $this->newInbox();
@@ -176,6 +202,10 @@ final class Connection
         return $msg;
     }
 
+    /**
+     * @throws NatsException If not connected or subject is invalid
+     * @throws TimeoutException If no response received within timeout
+     */
     public function requestMessage(Message $msg, float $timeout = 2.0): Message
     {
         $inbox = $this->newInbox();
@@ -228,6 +258,10 @@ final class Connection
         $this->close();
     }
 
+    /**
+     * @throws NatsException If not connected
+     * @throws TimeoutException If flush does not complete within timeout
+     */
     public function flush(float $timeout = 2.0): void
     {
         $this->ensureConnected();
@@ -359,6 +393,10 @@ final class Connection
         return $this->serverInfo;
     }
 
+    /**
+     * @throws NatsException If not connected
+     * @throws TimeoutException If RTT measurement times out
+     */
     public function rtt(): float
     {
         $this->ensureConnected();
@@ -494,6 +532,9 @@ final class Connection
 
     // --- JetStream ---
 
+    /**
+     * @throws NatsException If JetStream is not available on this server
+     */
     public function jetStream(?JetStream\JetStreamOptions $options = null): JetStream\JetStreamContext
     {
         if (!$this->jetStreamAvailable()) {

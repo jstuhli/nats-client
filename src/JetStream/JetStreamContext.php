@@ -45,6 +45,9 @@ final class JetStreamContext
 
     // --- Stream Management ---
 
+    /**
+     * @throws JetStreamException If the stream cannot be created
+     */
     public function createStream(StreamConfig $config): StreamInterface
     {
         $data = $this->apiRequest('STREAM.CREATE.' . $config->name, $config->toArray());
@@ -52,6 +55,9 @@ final class JetStreamContext
         return new Stream($this, $config->name, $info);
     }
 
+    /**
+     * @throws JetStreamException If the stream cannot be updated
+     */
     public function updateStream(StreamConfig $config): StreamInterface
     {
         $data = $this->apiRequest('STREAM.UPDATE.' . $config->name, $config->toArray());
@@ -59,6 +65,9 @@ final class JetStreamContext
         return new Stream($this, $config->name, $info);
     }
 
+    /**
+     * @throws JetStreamException If the stream cannot be created or updated
+     */
     public function createOrUpdateStream(StreamConfig $config): StreamInterface
     {
         try {
@@ -72,6 +81,9 @@ final class JetStreamContext
         }
     }
 
+    /**
+     * @throws JetStreamException If the stream is not found
+     */
     public function stream(string $name): StreamInterface
     {
         $data = $this->apiRequest("STREAM.INFO.{$name}");
@@ -79,12 +91,18 @@ final class JetStreamContext
         return new Stream($this, $name, $info);
     }
 
+    /**
+     * @throws JetStreamException If the stream cannot be deleted
+     */
     public function deleteStream(string $name): void
     {
         $this->apiRequest("STREAM.DELETE.{$name}");
     }
 
-    /** @return \Generator<StreamInfo> */
+    /**
+     * @return \Generator<StreamInfo>
+     * @throws JetStreamException If the API request fails
+     */
     public function listStreams(?string $subject = null): \Generator
     {
         $offset = 0;
@@ -103,6 +121,9 @@ final class JetStreamContext
         }
     }
 
+    /**
+     * @throws JetStreamException If no stream is found for the subject
+     */
     public function streamNameBySubject(string $subject): string
     {
         $data = $this->apiRequest('STREAM.NAMES', ['subject' => $subject]);
@@ -133,6 +154,9 @@ final class JetStreamContext
 
     // --- Consumer Management ---
 
+    /**
+     * @throws JetStreamException If the consumer cannot be created
+     */
     public function createConsumer(string $stream, ConsumerConfig $config): ConsumerInterface
     {
         $data = $this->apiRequest(
@@ -142,6 +166,9 @@ final class JetStreamContext
         return new Consumer($this, $stream, ConsumerConfig::fromArray(T::stringKeyArray($data['config'] ?? [])));
     }
 
+    /**
+     * @throws JetStreamException If the consumer cannot be created or updated
+     */
     public function createOrUpdateConsumer(string $stream, ConsumerConfig $config): ConsumerInterface
     {
         $op = $config->name !== null
@@ -151,6 +178,9 @@ final class JetStreamContext
         return new Consumer($this, $stream, ConsumerConfig::fromArray(T::stringKeyArray($data['config'] ?? [])));
     }
 
+    /**
+     * @throws JetStreamException If the consumer is not found
+     */
     public function consumer(string $stream, string $name): ConsumerInterface
     {
         $data = $this->apiRequest("CONSUMER.INFO.{$stream}.{$name}");
@@ -162,6 +192,9 @@ final class JetStreamContext
         return new OrderedConsumer($this, $stream, $config ?? new OrderedConsumerConfig());
     }
 
+    /**
+     * @throws JetStreamException If the consumer cannot be deleted
+     */
     public function deleteConsumer(string $stream, string $name): void
     {
         $this->apiRequest("CONSUMER.DELETE.{$stream}.{$name}");
@@ -205,6 +238,11 @@ final class JetStreamContext
 
     // --- Publishing ---
 
+    /**
+     * @throws JetStreamException If the server rejects the publish
+     * @throws NatsException If not connected
+     * @throws \JsonException If payload encoding fails
+     */
     public function publish(string $subject, string $data = '', PublishOptions ...$opts): PubAck
     {
         $headers = new Headers();
@@ -247,6 +285,11 @@ final class JetStreamContext
         throw $lastError ?? new NatsException('Publish failed');
     }
 
+    /**
+     * @throws JetStreamException If the server rejects the publish
+     * @throws NatsException If not connected
+     * @throws \JsonException If payload encoding fails
+     */
     public function publishMessage(Message $msg, PublishOptions ...$opts): PubAck
     {
         $headers = $msg->headers ?? new Headers();
