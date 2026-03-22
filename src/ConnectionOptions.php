@@ -13,15 +13,23 @@ use Nats\Auth\UserPassAuthenticator;
 
 final readonly class ConnectionOptions
 {
+    /** @var list<string> */
+    public array $servers;
+
+    /** @var list<string> */
+    public array $tlsCaFiles;
+
+    /** @var \Psr\Log\LoggerInterface|null */
+    public ?object $logger;
+
     /**
-     * @param list<string> $servers
-     * @param list<string> $tlsCaFiles
+     * @param array<string> $servers
+     * @param array<string> $tlsCaFiles
      * @param array<string, mixed> $tlsContextOptions
      * @param \Psr\Log\LoggerInterface|null $logger
      */
     public function __construct(
-        /** @var list<string> */
-        public array $servers = ['nats://127.0.0.1:4222'],
+        array $servers = ['nats://127.0.0.1:4222'],
         public ?string $name = null,
         public ?AuthenticatorInterface $authenticator = null,
 
@@ -29,8 +37,7 @@ final readonly class ConnectionOptions
         public bool $tlsEnabled = false,
         public ?string $tlsCertFile = null,
         public ?string $tlsKeyFile = null,
-        /** @var list<string> */
-        public array $tlsCaFiles = [],
+        array $tlsCaFiles = [],
         /** @var array<string, mixed> */
         public array $tlsContextOptions = [],
 
@@ -77,30 +84,33 @@ final readonly class ConnectionOptions
         public bool $permissionErrOnSubscribe = false,
 
         // Logging
-        public ?object $logger = null,
+        ?object $logger = null,
     ) {
         /** @var mixed $server */
-        foreach ($this->servers as $i => $server) {
+        foreach ($servers as $i => $server) {
             if (!is_string($server)) {
                 throw new \InvalidArgumentException("servers[{$i}] must be a string");
             }
         }
+        $this->servers = array_values($servers);
 
         /** @var mixed $file */
-        foreach ($this->tlsCaFiles as $i => $file) {
+        foreach ($tlsCaFiles as $i => $file) {
             if (!is_string($file)) {
                 throw new \InvalidArgumentException("tlsCaFiles[{$i}] must be a string");
             }
         }
+        $this->tlsCaFiles = array_values($tlsCaFiles);
 
-        if ($this->logger !== null) {
+        if ($logger !== null) {
             $loggerInterface = \Psr\Log\LoggerInterface::class;
-            if (!interface_exists($loggerInterface) || !is_subclass_of($this->logger, $loggerInterface)) {
+            if (!interface_exists($loggerInterface) || !is_subclass_of($logger, $loggerInterface)) {
                 throw new \InvalidArgumentException(
                     "Logger must implement {$loggerInterface} (install psr/log to use logger support)"
                 );
             }
         }
+        $this->logger = $logger;
     }
 
     // --- Withers ---

@@ -37,6 +37,17 @@ final class ConnectionOptionsTest extends TestCase
         new ConnectionOptions(servers: [123]); // @phpstan-ignore argument.type
     }
 
+    public function testConstructorNormalizesAssociativeArrays(): void
+    {
+        $opts = new ConnectionOptions(
+            servers: ['a' => 'nats://srv1:4222', 'b' => 'nats://srv2:4222'],
+            tlsCaFiles: ['x' => '/tmp/ca.pem'],
+        );
+
+        self::assertSame(['nats://srv1:4222', 'nats://srv2:4222'], $opts->servers);
+        self::assertSame(['/tmp/ca.pem'], $opts->tlsCaFiles);
+    }
+
     public function testTlsCaFilesRejectsNonStringElements(): void
     {
         $this->expectException(\InvalidArgumentException::class);
