@@ -100,6 +100,11 @@ final class Connection
             }
         }
 
+        // Resolve hostnames to IPs unless disabled
+        if (!$conn->options->skipHostLookup) {
+            $conn->resolveServerPool();
+        }
+
         // Randomize server pool unless disabled
         if (!$conn->options->dontRandomize && count($conn->serverPool) > 1) {
             shuffle($conn->serverPool);
@@ -1146,6 +1151,65 @@ final class Connection
         if (preg_match('/[\s\x00-\x1f\x7f]/', $subject)) {
             throw new BadSubjectException("Invalid subject: '{$subject}'");
         }
+    }
+
+    private function resolveServerPool(): void
+    {
+        $expanded = [];
+        foreach ($this->serverPool as $url) {
+            foreach ($this->resolveUrl($url) as $resolved) {
+                if (!in_array($resolved, $expanded, true)) {
+                    $expanded[] = $resolved;
+                }
+            }
+        }
+        $this->serverPool = $expanded;
+    }
+
+    /**
+     * Resolves a single server URL to one or more URLs with IP addresses.
+     *
+     * @return list<string>
+     */
+    private function resolveUrl(string $url): array
+    {
+        $parsed = parse_url($url);
+        if ($parsed === false) {
+            return [$url];
+        }
+
+        $host = $parsed['host'] ?? null;
+        if ($host === null) {
+            return [$url];
+        }
+
+        // Already an IP address — no resolution needed
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return [$url];
+        }
+
+        $ips = gethostbynamel($host);
+        if ($ips === false || $ips === []) {
+            return [$url];
+        }
+
+        $scheme = $parsed['scheme'] ?? 'nats';
+        $port = $parsed['port'] ?? 4222;
+        $userInfo = '';
+        if (isset($parsed['user'])) {
+            $userInfo = $parsed['user'];
+            if (isset($parsed['pass'])) {
+                $userInfo .= ':' . $parsed['pass'];
+            }
+            $userInfo .= '@';
+        }
+
+        $urls = [];
+        foreach ($ips as $ip) {
+            $urls[] = "{$scheme}://{$userInfo}{$ip}:{$port}";
+        }
+
+        return $urls;
     }
 
     /**
