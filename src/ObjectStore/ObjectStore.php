@@ -73,6 +73,7 @@ final class ObjectStore implements ObjectStoreInterface
      */
     public function putStream(string $name, mixed $stream): ObjectInfo
     {
+        // TODO: Refactor the shared upload flow in putStream() and putRaw() into a private helper to reduce drift.
         self::assertReadableStream($stream, $name);
         $chunkSize = self::requirePositiveChunkSize($this->chunkSize);
         $jsStream = $this->js->stream("OBJ_{$this->bucketName}");
