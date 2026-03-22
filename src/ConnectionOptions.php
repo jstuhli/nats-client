@@ -11,312 +11,291 @@ use Nats\Auth\NKeyAuthenticator;
 use Nats\Auth\TokenAuthenticator;
 use Nats\Auth\UserPassAuthenticator;
 
-final class ConnectionOptions
+final readonly class ConnectionOptions
 {
-    /** @var list<string> */
-    private array $servers = ['nats://127.0.0.1:4222'];
-    private ?string $name = null;
-    private ?AuthenticatorInterface $authenticator = null;
-
-    // TLS
-    private bool $tlsEnabled = false;
-    private ?string $tlsCertFile = null;
-    private ?string $tlsKeyFile = null;
-    /** @var list<string> */
-    private array $tlsCaFiles = [];
-    /** @var array<string, mixed> */
-    private array $tlsContextOptions = [];
-
-    // Reconnect
-    private int $maxReconnects = 60;
-    private float $reconnectWait = 2.0;
-    private float $reconnectJitter = 0.1;
-    private float $reconnectJitterTls = 1.0;
-    private int $reconnectBufferSize = 8 * 1024 * 1024; // 8MB
-    private bool $noReconnect = false;
-    private bool $retryOnFailedConnect = false;
-    private bool $dontRandomize = false;
-
-    // Timeouts
-    private float $timeout = 2.0;
-    private float $pingInterval = 120.0;
-    private int $maxPingsOutstanding = 2;
-    private float $drainTimeout = 30.0;
-    private float $flusherTimeout = 5.0;
-
-    // Event handlers
-    private ?\Closure $onConnect = null;
-    private ?\Closure $onDisconnect = null;
-    private ?\Closure $onReconnect = null;
-    private ?\Closure $onClose = null;
-    private ?\Closure $onError = null;
-    private ?\Closure $onLameDuckMode = null;
-    private ?\Closure $onDiscoveredServers = null;
-
-    // Advanced
-    private bool $noEcho = false;
-    private bool $verbose = false;
-    private bool $pedantic = false;
-    private bool $ignoreDiscoveredServers = false;
-    private string $inboxPrefix = '_INBOX';
-    private bool $compression = false;
-
-    // Additional options
-    private bool $noCallbacksAfterClientClose = false;
-    private bool $skipHostLookup = false;
-    private bool $skipSubjectValidation = false;
-    private ?\Closure $customReconnectDelay = null;
-    private int $syncQueueLen = 65536;
-    private bool $permissionErrOnSubscribe = false;
-
-    // Logging
-    /** @var \Psr\Log\LoggerInterface|null */
-    private ?object $logger = null;
-
-    public function servers(string ...$urls): self
-    {
-        $this->servers = array_values($urls);
-        return $this;
-    }
-
-    public function name(string $name): self
-    {
-        $this->name = $name;
-        return $this;
-    }
-
-    // Auth methods
-
-    public function userInfo(string $user, string $password): self
-    {
-        $this->authenticator = new UserPassAuthenticator($user, $password);
-        return $this;
-    }
-
-    public function token(string|\Closure $token): self
-    {
-        $this->authenticator = new TokenAuthenticator($token);
-        return $this;
-    }
-
-    public function nkey(string $seed): self
-    {
-        $this->authenticator = new NKeyAuthenticator($seed);
-        return $this;
-    }
-
-    public function credentials(string $credsFilePath): self
-    {
-        $this->authenticator = new CredentialsAuthenticator($credsFilePath);
-        return $this;
-    }
-
-    public function jwt(string $jwt, string $nkeySeed): self
-    {
-        $this->authenticator = new JwtAuthenticator($jwt, $nkeySeed);
-        return $this;
-    }
-
-    public function authenticator(AuthenticatorInterface $auth): self
-    {
-        $this->authenticator = $auth;
-        return $this;
-    }
-
-    // TLS
-
-    public function tls(bool $enabled = true): self
-    {
-        $this->tlsEnabled = $enabled;
-        return $this;
-    }
-
-    public function tlsCertificate(string $certFile, string $keyFile): self
-    {
-        $this->tlsCertFile = $certFile;
-        $this->tlsKeyFile = $keyFile;
-        $this->tlsEnabled = true;
-        return $this;
-    }
-
-    public function tlsCaCertificate(string ...$caFiles): self
-    {
-        $this->tlsCaFiles = array_values($caFiles);
-        $this->tlsEnabled = true;
-        return $this;
-    }
-
     /**
-     * @param array<string, mixed> $streamContextOptions
+     * @param list<string> $servers
+     * @param list<string> $tlsCaFiles
+     * @param array<string, mixed> $tlsContextOptions
+     * @param \Psr\Log\LoggerInterface|null $logger
      */
-    public function tlsConfig(array $streamContextOptions): self
+    public function __construct(
+        /** @var list<string> */
+        public array $servers = ['nats://127.0.0.1:4222'],
+        public ?string $name = null,
+        public ?AuthenticatorInterface $authenticator = null,
+
+        // TLS
+        public bool $tlsEnabled = false,
+        public ?string $tlsCertFile = null,
+        public ?string $tlsKeyFile = null,
+        /** @var list<string> */
+        public array $tlsCaFiles = [],
+        /** @var array<string, mixed> */
+        public array $tlsContextOptions = [],
+
+        // Reconnect
+        public int $maxReconnects = 60,
+        public float $reconnectWait = 2.0,
+        public float $reconnectJitter = 0.1,
+        public float $reconnectJitterTls = 1.0,
+        public int $reconnectBufferSize = 8 * 1024 * 1024,
+        public bool $noReconnect = false,
+        public bool $retryOnFailedConnect = false,
+        public bool $dontRandomize = false,
+
+        // Timeouts
+        public float $timeout = 2.0,
+        public float $pingInterval = 120.0,
+        public int $maxPingsOutstanding = 2,
+        public float $drainTimeout = 30.0,
+        public float $flusherTimeout = 5.0,
+
+        // Event handlers
+        public ?\Closure $onConnect = null,
+        public ?\Closure $onDisconnect = null,
+        public ?\Closure $onReconnect = null,
+        public ?\Closure $onClose = null,
+        public ?\Closure $onError = null,
+        public ?\Closure $onLameDuckMode = null,
+        public ?\Closure $onDiscoveredServers = null,
+
+        // Advanced
+        public bool $noEcho = false,
+        public bool $verbose = false,
+        public bool $pedantic = false,
+        public bool $ignoreDiscoveredServers = false,
+        public string $inboxPrefix = '_INBOX',
+        public bool $compression = false,
+
+        // Additional options
+        public bool $noCallbacksAfterClientClose = false,
+        public bool $skipHostLookup = false,
+        public bool $skipSubjectValidation = false,
+        public ?\Closure $customReconnectDelay = null,
+        public int $syncQueueLen = 65536,
+        public bool $permissionErrOnSubscribe = false,
+
+        // Logging
+        public ?object $logger = null,
+    ) {}
+
+    // --- Withers ---
+
+    /** @param list<string> $urls */
+    public function withServers(string ...$urls): self
     {
-        $this->tlsContextOptions = $streamContextOptions;
-        $this->tlsEnabled = true;
-        return $this;
+        return clone($this, ['servers' => array_values($urls)]);
+    }
+
+    public function withName(string $name): self
+    {
+        return clone($this, ['name' => $name]);
+    }
+
+    // Auth
+
+    public function withUserInfo(string $user, string $password): self
+    {
+        return clone($this, ['authenticator' => new UserPassAuthenticator($user, $password)]);
+    }
+
+    public function withToken(string|\Closure $token): self
+    {
+        return clone($this, ['authenticator' => new TokenAuthenticator($token)]);
+    }
+
+    public function withNkey(string $seed): self
+    {
+        return clone($this, ['authenticator' => new NKeyAuthenticator($seed)]);
+    }
+
+    public function withCredentials(string $credsFilePath): self
+    {
+        return clone($this, ['authenticator' => new CredentialsAuthenticator($credsFilePath)]);
+    }
+
+    public function withJwt(string $jwt, string $nkeySeed): self
+    {
+        return clone($this, ['authenticator' => new JwtAuthenticator($jwt, $nkeySeed)]);
+    }
+
+    public function withAuthenticator(AuthenticatorInterface $auth): self
+    {
+        return clone($this, ['authenticator' => $auth]);
+    }
+
+    // TLS
+
+    public function withTls(bool $enabled = true): self
+    {
+        return clone($this, ['tlsEnabled' => $enabled]);
+    }
+
+    public function withTlsCertificate(string $certFile, string $keyFile): self
+    {
+        return clone($this, [
+            'tlsCertFile' => $certFile,
+            'tlsKeyFile' => $keyFile,
+            'tlsEnabled' => true,
+        ]);
+    }
+
+    public function withTlsCaCertificate(string ...$caFiles): self
+    {
+        return clone($this, [
+            'tlsCaFiles' => array_values($caFiles),
+            'tlsEnabled' => true,
+        ]);
+    }
+
+    /** @param array<string, mixed> $streamContextOptions */
+    public function withTlsConfig(array $streamContextOptions): self
+    {
+        return clone($this, [
+            'tlsContextOptions' => $streamContextOptions,
+            'tlsEnabled' => true,
+        ]);
     }
 
     // Reconnect
 
-    public function maxReconnects(int $max): self
+    public function withMaxReconnects(int $max): self
     {
-        $this->maxReconnects = $max;
-        return $this;
+        return clone($this, ['maxReconnects' => $max]);
     }
 
-    public function reconnectWait(float $seconds): self
+    public function withReconnectWait(float $seconds): self
     {
-        $this->reconnectWait = $seconds;
-        return $this;
+        return clone($this, ['reconnectWait' => $seconds]);
     }
 
-    public function reconnectJitter(float $jitter, float $jitterTls = 1.0): self
+    public function withReconnectJitter(float $jitter, float $jitterTls = 1.0): self
     {
-        $this->reconnectJitter = $jitter;
-        $this->reconnectJitterTls = $jitterTls;
-        return $this;
+        return clone($this, [
+            'reconnectJitter' => $jitter,
+            'reconnectJitterTls' => $jitterTls,
+        ]);
     }
 
-    public function reconnectBufferSize(int $bytes): self
+    public function withReconnectBufferSize(int $bytes): self
     {
-        $this->reconnectBufferSize = $bytes;
-        return $this;
+        return clone($this, ['reconnectBufferSize' => $bytes]);
     }
 
-    public function noReconnect(): self
+    public function withNoReconnect(bool $noReconnect = true): self
     {
-        $this->noReconnect = true;
-        return $this;
+        return clone($this, ['noReconnect' => $noReconnect]);
     }
 
-    public function retryOnFailedConnect(bool $retry = true): self
+    public function withRetryOnFailedConnect(bool $retry = true): self
     {
-        $this->retryOnFailedConnect = $retry;
-        return $this;
+        return clone($this, ['retryOnFailedConnect' => $retry]);
     }
 
-    public function dontRandomize(): self
+    public function withDontRandomize(bool $dontRandomize = true): self
     {
-        $this->dontRandomize = true;
-        return $this;
+        return clone($this, ['dontRandomize' => $dontRandomize]);
     }
 
     // Timeouts
 
-    public function timeout(float $seconds): self
+    public function withTimeout(float $seconds): self
     {
-        $this->timeout = $seconds;
-        return $this;
+        return clone($this, ['timeout' => $seconds]);
     }
 
-    public function pingInterval(float $seconds): self
+    public function withPingInterval(float $seconds): self
     {
-        $this->pingInterval = $seconds;
-        return $this;
+        return clone($this, ['pingInterval' => $seconds]);
     }
 
-    public function maxPingsOutstanding(int $max): self
+    public function withMaxPingsOutstanding(int $max): self
     {
-        $this->maxPingsOutstanding = $max;
-        return $this;
+        return clone($this, ['maxPingsOutstanding' => $max]);
     }
 
-    public function drainTimeout(float $seconds): self
+    public function withDrainTimeout(float $seconds): self
     {
-        $this->drainTimeout = $seconds;
-        return $this;
+        return clone($this, ['drainTimeout' => $seconds]);
     }
 
-    public function flusherTimeout(float $seconds): self
+    public function withFlusherTimeout(float $seconds): self
     {
-        $this->flusherTimeout = $seconds;
-        return $this;
+        return clone($this, ['flusherTimeout' => $seconds]);
     }
 
     // Event handlers
 
-    public function onConnect(\Closure $handler): self
+    public function withOnConnect(\Closure $handler): self
     {
-        $this->onConnect = $handler;
-        return $this;
+        return clone($this, ['onConnect' => $handler]);
     }
 
-    public function onDisconnect(\Closure $handler): self
+    public function withOnDisconnect(\Closure $handler): self
     {
-        $this->onDisconnect = $handler;
-        return $this;
+        return clone($this, ['onDisconnect' => $handler]);
     }
 
-    public function onReconnect(\Closure $handler): self
+    public function withOnReconnect(\Closure $handler): self
     {
-        $this->onReconnect = $handler;
-        return $this;
+        return clone($this, ['onReconnect' => $handler]);
     }
 
-    public function onClose(\Closure $handler): self
+    public function withOnClose(\Closure $handler): self
     {
-        $this->onClose = $handler;
-        return $this;
+        return clone($this, ['onClose' => $handler]);
     }
 
-    public function onError(\Closure $handler): self
+    public function withOnError(\Closure $handler): self
     {
-        $this->onError = $handler;
-        return $this;
+        return clone($this, ['onError' => $handler]);
     }
 
-    public function onLameDuckMode(\Closure $handler): self
+    public function withOnLameDuckMode(\Closure $handler): self
     {
-        $this->onLameDuckMode = $handler;
-        return $this;
+        return clone($this, ['onLameDuckMode' => $handler]);
     }
 
-    public function onDiscoveredServers(\Closure $handler): self
+    public function withOnDiscoveredServers(\Closure $handler): self
     {
-        $this->onDiscoveredServers = $handler;
-        return $this;
+        return clone($this, ['onDiscoveredServers' => $handler]);
     }
 
     // Advanced
 
-    public function noEcho(): self
+    public function withNoEcho(bool $noEcho = true): self
     {
-        $this->noEcho = true;
-        return $this;
+        return clone($this, ['noEcho' => $noEcho]);
     }
 
-    public function verbose(bool $verbose = true): self
+    public function withVerbose(bool $verbose = true): self
     {
-        $this->verbose = $verbose;
-        return $this;
+        return clone($this, ['verbose' => $verbose]);
     }
 
-    public function pedantic(bool $pedantic = true): self
+    public function withPedantic(bool $pedantic = true): self
     {
-        $this->pedantic = $pedantic;
-        return $this;
+        return clone($this, ['pedantic' => $pedantic]);
     }
 
-    public function ignoreDiscoveredServers(): self
+    public function withIgnoreDiscoveredServers(bool $ignore = true): self
     {
-        $this->ignoreDiscoveredServers = true;
-        return $this;
+        return clone($this, ['ignoreDiscoveredServers' => $ignore]);
     }
 
-    public function customInboxPrefix(string $prefix): self
+    public function withInboxPrefix(string $prefix): self
     {
-        $this->inboxPrefix = $prefix;
-        return $this;
+        return clone($this, ['inboxPrefix' => $prefix]);
     }
 
-    public function compression(bool $enabled = true): self
+    public function withCompression(bool $enabled = true): self
     {
-        $this->compression = $enabled;
-        return $this;
+        return clone($this, ['compression' => $enabled]);
     }
 
     /** Sets a PSR-3 logger for connection lifecycle events. */
-    public function logger(object $logger): self
+    public function withLogger(object $logger): self
     {
         $loggerInterface = \Psr\Log\LoggerInterface::class;
         if (!interface_exists($loggerInterface) || !is_subclass_of($logger, $loggerInterface)) {
@@ -325,98 +304,42 @@ final class ConnectionOptions
             );
         }
 
-        $this->logger = $logger;
-        return $this;
+        return clone($this, ['logger' => $logger]);
     }
 
-    public function noCallbacksAfterClientClose(): self
+    public function withNoCallbacksAfterClientClose(bool $enabled = true): self
     {
-        $this->noCallbacksAfterClientClose = true;
-        return $this;
+        return clone($this, ['noCallbacksAfterClientClose' => $enabled]);
     }
 
-    public function skipHostLookup(): self
+    public function withSkipHostLookup(bool $skip = true): self
     {
-        $this->skipHostLookup = true;
-        return $this;
+        return clone($this, ['skipHostLookup' => $skip]);
     }
 
-    public function skipSubjectValidation(): self
+    public function withSkipSubjectValidation(bool $skip = true): self
     {
-        $this->skipSubjectValidation = true;
-        return $this;
+        return clone($this, ['skipSubjectValidation' => $skip]);
     }
 
-    public function customReconnectDelay(\Closure $cb): self
+    public function withCustomReconnectDelay(\Closure $cb): self
     {
-        $this->customReconnectDelay = $cb;
-        return $this;
+        return clone($this, ['customReconnectDelay' => $cb]);
     }
 
-    public function syncQueueLen(int $max): self
+    public function withSyncQueueLen(int $max): self
     {
-        $this->syncQueueLen = $max;
-        return $this;
+        return clone($this, ['syncQueueLen' => $max]);
     }
 
-    public function permissionErrOnSubscribe(bool $enabled = true): self
+    public function withPermissionErrOnSubscribe(bool $enabled = true): self
     {
-        $this->permissionErrOnSubscribe = $enabled;
-        return $this;
+        return clone($this, ['permissionErrOnSubscribe' => $enabled]);
     }
 
-    // Dynamic setters (used by Connection at runtime)
+    // --- Computed ---
 
-    /** @internal */
-    public function setOnDisconnect(?\Closure $handler): void
-    {
-        $this->onDisconnect = $handler;
-    }
-
-    /** @internal */
-    public function setOnReconnect(?\Closure $handler): void
-    {
-        $this->onReconnect = $handler;
-    }
-
-    /** @internal */
-    public function setOnClose(?\Closure $handler): void
-    {
-        $this->onClose = $handler;
-    }
-
-    /** @internal */
-    public function setOnError(?\Closure $handler): void
-    {
-        $this->onError = $handler;
-    }
-
-    // Getters
-
-    /** @return list<string> */
-    public function getServers(): array
-    {
-        return $this->servers;
-    }
-
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    public function getAuthenticator(): ?AuthenticatorInterface
-    {
-        return $this->authenticator;
-    }
-
-    public function isTlsEnabled(): bool
-    {
-        return $this->tlsEnabled;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
+    /** @return array<string, mixed> */
     public function getTlsContext(): array
     {
         $ctx = $this->tlsContextOptions;
@@ -437,39 +360,4 @@ final class ConnectionOptions
         }
         return $ctx;
     }
-
-    public function getMaxReconnects(): int { return $this->maxReconnects; }
-    public function getReconnectWait(): float { return $this->reconnectWait; }
-    public function getReconnectJitter(): float { return $this->reconnectJitter; }
-    public function getReconnectJitterTls(): float { return $this->reconnectJitterTls; }
-    public function getReconnectBufferSize(): int { return $this->reconnectBufferSize; }
-    public function isNoReconnect(): bool { return $this->noReconnect; }
-    public function isRetryOnFailedConnect(): bool { return $this->retryOnFailedConnect; }
-    public function isDontRandomize(): bool { return $this->dontRandomize; }
-    public function getTimeout(): float { return $this->timeout; }
-    public function getPingInterval(): float { return $this->pingInterval; }
-    public function getMaxPingsOutstanding(): int { return $this->maxPingsOutstanding; }
-    public function getDrainTimeout(): float { return $this->drainTimeout; }
-    public function getFlusherTimeout(): float { return $this->flusherTimeout; }
-    public function getOnConnect(): ?\Closure { return $this->onConnect; }
-    public function getOnDisconnect(): ?\Closure { return $this->onDisconnect; }
-    public function getOnReconnect(): ?\Closure { return $this->onReconnect; }
-    public function getOnClose(): ?\Closure { return $this->onClose; }
-    public function getOnError(): ?\Closure { return $this->onError; }
-    public function getOnLameDuckMode(): ?\Closure { return $this->onLameDuckMode; }
-    public function getOnDiscoveredServers(): ?\Closure { return $this->onDiscoveredServers; }
-    public function isNoEcho(): bool { return $this->noEcho; }
-    public function isVerbose(): bool { return $this->verbose; }
-    public function isPedantic(): bool { return $this->pedantic; }
-    public function isIgnoreDiscoveredServers(): bool { return $this->ignoreDiscoveredServers; }
-    public function getInboxPrefix(): string { return $this->inboxPrefix; }
-    public function isCompression(): bool { return $this->compression; }
-    /** @return \Psr\Log\LoggerInterface|null */
-    public function getLogger(): ?object { return $this->logger; }
-    public function isNoCallbacksAfterClientClose(): bool { return $this->noCallbacksAfterClientClose; }
-    public function isSkipHostLookup(): bool { return $this->skipHostLookup; }
-    public function isSkipSubjectValidation(): bool { return $this->skipSubjectValidation; }
-    public function getCustomReconnectDelay(): ?\Closure { return $this->customReconnectDelay; }
-    public function getSyncQueueLen(): int { return $this->syncQueueLen; }
-    public function isPermissionErrOnSubscribe(): bool { return $this->permissionErrOnSubscribe; }
 }

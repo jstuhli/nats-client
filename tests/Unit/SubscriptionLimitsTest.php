@@ -187,16 +187,16 @@ final class SubscriptionLimitsTest extends TestCase
         $lastErrorProp = $ref->getProperty('lastError');
         $lastErrorProp->setValue($conn, null);
 
-        // Set options with error handler
-        $optionsRef = new \ReflectionClass(\Nats\ConnectionOptions::class);
+        // Set options and error handler
         $options = new \Nats\ConnectionOptions();
-        $options->setOnError(function ($c, $err) use (&$reported): void {
+        $optionsProp = $ref->getProperty('options');
+        $optionsProp->setValue($conn, $options);
+
+        $errorHandlerProp = $ref->getProperty('onErrorHandler');
+        $errorHandlerProp->setValue($conn, function ($c, $err) use (&$reported): void {
             $reported = true;
             self::assertInstanceOf(\Nats\SlowConsumerException::class, $err);
         });
-
-        $optionsProp = $ref->getProperty('options');
-        $optionsProp->setValue($conn, $options);
 
         $sub = $this->createSubscription($conn);
         $sub->setPendingLimits(2, 0);

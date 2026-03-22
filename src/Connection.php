@@ -54,6 +54,12 @@ final class Connection
     /** @var \Psr\Log\LoggerInterface|null */
     private ?object $logger = null;
 
+    // Dynamic event handlers (override options at runtime)
+    private ?\Closure $onDisconnectHandler = null;
+    private ?\Closure $onReconnectHandler = null;
+    private ?\Closure $onCloseHandler = null;
+    private ?\Closure $onErrorHandler = null;
+
     // Reconnect buffer
     private string $reconnectBuffer = '';
 
@@ -70,7 +76,11 @@ final class Connection
     ): self {
         $conn = new self();
         $conn->options = $options ?? new ConnectionOptions();
-        $conn->logger = $conn->options->getLogger();
+        $conn->logger = $conn->options->logger;
+        $conn->onDisconnectHandler = $conn->options->onDisconnect;
+        $conn->onReconnectHandler = $conn->options->onReconnect;
+        $conn->onCloseHandler = $conn->options->onClose;
+        $conn->onErrorHandler = $conn->options->onError;
         $conn->parser = new Parser();
         $conn->writer = new Writer();
         $conn->transport = new TcpTransport();
@@ -83,7 +93,7 @@ final class Connection
         }
 
         // Override with options servers if set
-        $optServers = $conn->options->getServers();
+        $optServers = $conn->options->servers;
         if ($optServers !== ['nats://127.0.0.1:4222'] || is_string($url) && $url === 'nats://127.0.0.1:4222') {
             if ($optServers !== ['nats://127.0.0.1:4222']) {
                 $conn->serverPool = $optServers;
@@ -91,7 +101,7 @@ final class Connection
         }
 
         // Randomize server pool unless disabled
-        if (!$conn->options->isDontRandomize() && count($conn->serverPool) > 1) {
+        if (!$conn->options->dontRandomize && count($conn->serverPool) > 1) {
             shuffle($conn->serverPool);
         }
 
@@ -243,7 +253,7 @@ final class Connection
         $this->parser->reset();
         $this->subscriptions = [];
 
-        $handler = $this->options->getOnClose();
+        $handler = $this->onCloseHandler;
         if ($handler !== null) {
             $handler($this);
         }
@@ -487,7 +497,7 @@ final class Connection
      */
     public function setDisconnectHandler(?\Closure $handler): void
     {
-        $this->options->setOnDisconnect($handler);
+        $this->onDisconnectHandler = $handler;
     }
 
     /**
@@ -495,7 +505,7 @@ final class Connection
      */
     public function setReconnectHandler(?\Closure $handler): void
     {
-        $this->options->setOnReconnect($handler);
+        $this->onReconnectHandler = $handler;
     }
 
     /**
@@ -503,7 +513,7 @@ final class Connection
      */
     public function setClosedHandler(?\Closure $handler): void
     {
-        $this->options->setOnClose($handler);
+        $this->onCloseHandler = $handler;
     }
 
     /**
@@ -511,7 +521,7 @@ final class Connection
      */
     public function setErrorHandler(?\Closure $handler): void
     {
-        $this->options->setOnError($handler);
+        $this->onErrorHandler = $handler;
     }
 
     public function authRequired(): bool
@@ -536,7 +546,7 @@ final class Connection
 
     public function newInbox(): string
     {
-        return Inbox::generate($this->options->getInboxPrefix());
+        return Inbox::generate($this->options->inboxPrefix);
     }
 
     // --- JetStream ---
@@ -585,7 +595,7 @@ final class Connection
 
                 $this->log('info', 'Connected to {url}', ['url' => $url]);
 
-                $handler = $this->options->getOnConnect();
+                $handler = $this->options->onConnect;
                 if ($handler !== null) {
                     $handler($this);
                 }
@@ -617,15 +627,15 @@ final class Connection
         $port = $parsed['port'] ?? 4222;
         $scheme = $parsed['scheme'] ?? 'nats';
 
-        $useTls = $scheme === 'tls' || $scheme === 'nats+tls' || $this->options->isTlsEnabled();
+        $useTls = $scheme === 'tls' || $scheme === 'nats+tls' || $this->options->tlsEnabled;
         $address = "tcp://{$host}:{$port}";
 
         $this->log('debug', 'Attempting to connect to {url}', ['url' => $url]);
 
         $tlsContext = $useTls ? $this->options->getTlsContext() : null;
 
-        $this->transport->connect($address, $this->options->getTimeout(), $tlsContext);
-        $this->transport->setTimeout($this->options->getTimeout());
+        $this->transport->connect($address, $this->options->timeout, $tlsContext);
+        $this->transport->setTimeout($this->options->timeout);
 
         // Read INFO
         $infoLine = $this->transport->readLine();
@@ -646,7 +656,7 @@ final class Connection
         }
 
         // Add discovered servers to pool
-        if (!$this->options->isIgnoreDiscoveredServers()) {
+        if (!$this->options->ignoreDiscoveredServers) {
             $newServers = 0;
             foreach ($serverInfo->connectUrls as $discoveredUrl) {
                 $normalized = "nats://{$discoveredUrl}";
@@ -686,7 +696,7 @@ final class Connection
         $this->lastPingTime = microtime(true);
 
         // Set URL user/pass auth if present in URL
-        if (isset($parsed['user']) && $this->options->getAuthenticator() === null) {
+        if (isset($parsed['user']) && $this->options->authenticator === null) {
             // URL had embedded credentials — already handled in buildConnectPayload
         }
     }
@@ -697,8 +707,8 @@ final class Connection
     private function buildConnectPayload(): array
     {
         $payload = [
-            'verbose' => $this->options->isVerbose(),
-            'pedantic' => $this->options->isPedantic(),
+            'verbose' => $this->options->verbose,
+            'pedantic' => $this->options->pedantic,
             'lang' => 'php',
             'version' => '1.0.0',
             'protocol' => 1,
@@ -706,16 +716,16 @@ final class Connection
             'no_responders' => true,
         ];
 
-        if ($this->options->getName() !== null) {
-            $payload['name'] = $this->options->getName();
+        if ($this->options->name !== null) {
+            $payload['name'] = $this->options->name;
         }
 
-        if ($this->options->isNoEcho()) {
+        if ($this->options->noEcho) {
             $payload['echo'] = false;
         }
 
         // Auth
-        $auth = $this->options->getAuthenticator();
+        $auth = $this->options->authenticator;
         if ($auth !== null) {
             $payload = array_merge($payload, $auth->buildConnectOptions());
 
@@ -793,7 +803,7 @@ final class Connection
             "Slow consumer on subject '{$sub->subject()}': messages dropped"
         );
 
-        $handler = $this->options->getOnError();
+        $handler = $this->onErrorHandler;
         if ($handler !== null) {
             $handler($this, $this->lastError);
         }
@@ -804,7 +814,7 @@ final class Connection
     private function writeToServer(string $data): void
     {
         if ($this->status === ConnectionStatus::Reconnecting) {
-            $maxSize = $this->options->getReconnectBufferSize();
+            $maxSize = $this->options->reconnectBufferSize;
             if (strlen($this->reconnectBuffer) + strlen($data) <= $maxSize) {
                 $this->reconnectBuffer .= $data;
             }
@@ -931,7 +941,7 @@ final class Connection
         $this->log('warning', 'Server error: {error}', ['error' => $errMsg]);
         $this->lastError = new NatsException("Server error: {$errMsg}");
 
-        $handler = $this->options->getOnError();
+        $handler = $this->onErrorHandler;
         if ($handler !== null) {
             $handler($this, $this->lastError);
             return;
@@ -959,12 +969,12 @@ final class Connection
         $this->log('debug', 'Received updated server info');
 
         // Update server pool with newly discovered servers
-        if (!$this->options->isIgnoreDiscoveredServers()) {
+        if (!$this->options->ignoreDiscoveredServers) {
             foreach ($newInfo->connectUrls as $url) {
                 $normalized = "nats://{$url}";
                 if (!in_array($normalized, $this->serverPool, true)) {
                     $this->serverPool[] = $normalized;
-                    $handler = $this->options->getOnDiscoveredServers();
+                    $handler = $this->options->onDiscoveredServers;
                     if ($handler !== null) {
                         $handler($this);
                     }
@@ -975,7 +985,7 @@ final class Connection
         // Lame duck mode
         if ($newInfo->lameDuckMode) {
             $this->log('warning', 'Server entered lame duck mode');
-            $handler = $this->options->getOnLameDuckMode();
+            $handler = $this->options->onLameDuckMode;
             if ($handler !== null) {
                 $handler($this);
             }
@@ -985,11 +995,11 @@ final class Connection
     private function checkPing(): void
     {
         $now = microtime(true);
-        if ($now - $this->lastPingTime < $this->options->getPingInterval()) {
+        if ($now - $this->lastPingTime < $this->options->pingInterval) {
             return;
         }
 
-        if ($this->pingsOut >= $this->options->getMaxPingsOutstanding()) {
+        if ($this->pingsOut >= $this->options->maxPingsOutstanding) {
             $this->log('warning', 'Max pings outstanding reached, disconnecting');
             $this->handleDisconnect();
             return;
@@ -1005,12 +1015,12 @@ final class Connection
 
     private function handleDisconnect(): void
     {
-        $handler = $this->options->getOnDisconnect();
+        $handler = $this->onDisconnectHandler;
         if ($handler !== null) {
             $handler($this);
         }
 
-        if ($this->options->isNoReconnect()) {
+        if ($this->options->noReconnect) {
             $this->close();
             return;
         }
@@ -1023,7 +1033,7 @@ final class Connection
 
     private function doReconnect(): void
     {
-        $maxReconnects = $this->options->getMaxReconnects();
+        $maxReconnects = $this->options->maxReconnects;
         $attempts = 0;
 
         while ($maxReconnects < 0 || $attempts < $maxReconnects) {
@@ -1059,7 +1069,7 @@ final class Connection
 
                     $this->log('info', 'Reconnected to {url}', ['url' => $url]);
 
-                    $handler = $this->options->getOnReconnect();
+                    $handler = $this->onReconnectHandler;
                     if ($handler !== null) {
                         $handler($this);
                     }
@@ -1077,15 +1087,15 @@ final class Connection
             $attempts++;
 
             // Use custom reconnect delay if configured (matches Go CustomReconnectDelay)
-            $customDelay = $this->options->getCustomReconnectDelay();
+            $customDelay = $this->options->customReconnectDelay;
             if ($customDelay !== null) {
                 $result = $customDelay($attempts);
                 $actualWait = is_numeric($result) ? (float) $result : 1.0;
             } else {
-                $wait = $this->options->getReconnectWait();
-                $jitter = $this->options->isTlsEnabled()
-                    ? $this->options->getReconnectJitterTls()
-                    : $this->options->getReconnectJitter();
+                $wait = $this->options->reconnectWait;
+                $jitter = $this->options->tlsEnabled
+                    ? $this->options->reconnectJitterTls
+                    : $this->options->reconnectJitter;
                 $actualWait = $wait + (mt_rand() / getrandmax()) * $jitter;
             }
             usleep((int) ($actualWait * 1_000_000));
