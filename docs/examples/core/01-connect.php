@@ -30,13 +30,14 @@ $conn->close();
 $conn = Connection::connect('nats://srv1:4222, nats://srv2:4222');
 $conn->close();
 
-// 5. With options
-$options = (new ConnectionOptions())
-    ->name('my-php-app')
-    ->timeout(5.0)
-    ->pingInterval(60.0)
-    ->maxReconnects(10)
-    ->reconnectWait(1.0);
+// 5. With options (named constructor arguments)
+$options = new ConnectionOptions(
+    name: 'my-php-app',
+    timeout: 5.0,
+    pingInterval: 60.0,
+    maxReconnects: 10,
+    reconnectWait: 1.0,
+);
 
 $conn = Connection::connect('nats://localhost:4222', $options);
 echo "Max payload: {$conn->maxPayload()} bytes\n";

@@ -87,7 +87,7 @@ $conn->close();
 // If you have already validated your subjects upstream,
 // you can trade the safety check for throughput.
 
-$opts = (new ConnectionOptions())->skipSubjectValidation();
+$opts = new ConnectionOptions(skipSubjectValidation: true);
 $conn = Connection::connect('nats://localhost:4222', $opts);
 
 // This won't throw — validation is disabled
@@ -103,13 +103,14 @@ $conn->close();
 
 $slowConsumerDetected = false;
 
-$opts = (new ConnectionOptions())
-    ->onError(function (Connection $conn, \Throwable $err) use (&$slowConsumerDetected) {
+$opts = new ConnectionOptions(
+    onError: function (Connection $conn, \Throwable $err) use (&$slowConsumerDetected) {
         if ($err instanceof SlowConsumerException) {
             $slowConsumerDetected = true;
             echo "Slow consumer detected: {$err->getMessage()}\n";
         }
-    });
+    },
+);
 
 $conn = Connection::connect('nats://localhost:4222', $opts);
 $sub = $conn->subscribeSync('load.test');

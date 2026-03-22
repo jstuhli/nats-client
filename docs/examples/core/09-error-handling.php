@@ -24,15 +24,16 @@ use Nats\JetStream\Stream\StreamConfig;
 // Asynchronous errors (slow consumer, permission violations, etc.)
 // are delivered here instead of being thrown inline.
 
-$options = (new ConnectionOptions())
-    ->name('error-handling-demo')
-    ->onError(function (Connection $conn, \Throwable $err) {
+$options = new ConnectionOptions(
+    name: 'error-handling-demo',
+    onError: function (Connection $conn, \Throwable $err) {
         // Log the error, increment a metric, alert ops — whatever makes sense
         echo "[onError] {$err::class}: {$err->getMessage()}\n";
 
         // The same error is also available afterwards:
         // $conn->lastError()
-    });
+    },
+);
 
 $conn = Connection::connect('nats://localhost:4222', $options);
 

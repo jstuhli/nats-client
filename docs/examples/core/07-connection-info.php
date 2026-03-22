@@ -13,8 +13,7 @@ require_once __DIR__ . '/../../../vendor/autoload.php';
 use Nats\Connection;
 use Nats\ConnectionOptions;
 
-$options = (new ConnectionOptions())
-    ->name('info-demo');
+$options = new ConnectionOptions(name: 'info-demo');
 
 $conn = Connection::connect('nats://localhost:4222', $options);
 

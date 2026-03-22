@@ -13,14 +13,14 @@ use Nats\ConnectionOptions;
 
 // 1. User/Password
 $options = (new ConnectionOptions())
-    ->userInfo('myuser', 'mypassword');
+    ->withUserInfo('myuser', 'mypassword');
 
 $conn = Connection::connect('nats://localhost:4222', $options);
 $conn->close();
 
 // 2. Token
 $options = (new ConnectionOptions())
-    ->token('s3cr3t-token');
+    ->withToken('s3cr3t-token');
 
 $conn = Connection::connect('nats://localhost:4222', $options);
 $conn->close();
@@ -31,21 +31,23 @@ $conn->close();
 
 // 4. NKey authentication (Ed25519)
 // $options = (new ConnectionOptions())
-//     ->nkey('SUACSSL3UAHUDXKFSNVUZRF5UHPMWZ6BFDTJ7M6USDXIEDNPPQYYYCU3VY');
+//     ->withNkey('SUACSSL3UAHUDXKFSNVUZRF5UHPMWZ6BFDTJ7M6USDXIEDNPPQYYYCU3VY');
 // $conn = Connection::connect('nats://localhost:4222', $options);
 
 // 5. JWT + NKey
 // $options = (new ConnectionOptions())
-//     ->jwt($jwtString, $nkeySeed);
+//     ->withJwt($jwtString, $nkeySeed);
 
 // 6. Credentials file (.creds)
 // $options = (new ConnectionOptions())
-//     ->credentials('/path/to/user.creds');
+//     ->withCredentials('/path/to/user.creds');
 
 // 7. TLS
-$options = (new ConnectionOptions())
-    ->tls()
-    ->tlsCertificate('/path/to/client-cert.pem', '/path/to/client-key.pem')
-    ->tlsCaCertificate('/path/to/ca.pem');
+$options = new ConnectionOptions(
+    tlsEnabled: true,
+    tlsCertFile: '/path/to/client-cert.pem',
+    tlsKeyFile: '/path/to/client-key.pem',
+    tlsCaFiles: ['/path/to/ca.pem'],
+);
 
 // $conn = Connection::connect('tls://localhost:4222', $options);

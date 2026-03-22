@@ -11,14 +11,49 @@ use PHPUnit\Framework\TestCase;
 
 final class ConnectionOptionsTest extends TestCase
 {
-    public function testLoggerRequiresPsrLoggerInterface(): void
+    public function testLoggerRequiresPsrLoggerInterfaceViaWither(): void
     {
         $opts = new ConnectionOptions();
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Logger must implement Psr\\Log\\LoggerInterface');
 
-        $opts->logger(new class {});
+        $opts->withLogger(new class {});
+    }
+
+    public function testLoggerRequiresPsrLoggerInterfaceViaConstructor(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Logger must implement Psr\\Log\\LoggerInterface');
+
+        new ConnectionOptions(logger: new class {});
+    }
+
+    public function testServersRejectsNonStringElements(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('servers[0] must be a string');
+
+        new ConnectionOptions(servers: [123]); // @phpstan-ignore argument.type
+    }
+
+    public function testConstructorNormalizesAssociativeArrays(): void
+    {
+        $opts = new ConnectionOptions(
+            servers: ['a' => 'nats://srv1:4222', 'b' => 'nats://srv2:4222'],
+            tlsCaFiles: ['x' => '/tmp/ca.pem'],
+        );
+
+        self::assertSame(['nats://srv1:4222', 'nats://srv2:4222'], $opts->servers);
+        self::assertSame(['/tmp/ca.pem'], $opts->tlsCaFiles);
+    }
+
+    public function testTlsCaFilesRejectsNonStringElements(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('tlsCaFiles[0] must be a string');
+
+        new ConnectionOptions(tlsCaFiles: [123]); // @phpstan-ignore argument.type
     }
 
     public function testLoggerAcceptsPsrLoggerInterface(): void
@@ -36,47 +71,47 @@ final class ConnectionOptionsTest extends TestCase
             public function log(mixed $level, string|\Stringable $message, array $context = []): void {}
         };
 
-        $opts->logger($logger);
+        $opts = $opts->withLogger($logger);
 
-        self::assertSame($logger, $opts->getLogger());
+        self::assertSame($logger, $opts->logger);
     }
 
     public function testNoCallbacksAfterClientClose(): void
     {
         $opts = new ConnectionOptions();
-        self::assertFalse($opts->isNoCallbacksAfterClientClose());
+        self::assertFalse($opts->noCallbacksAfterClientClose);
 
-        $opts->noCallbacksAfterClientClose();
-        self::assertTrue($opts->isNoCallbacksAfterClientClose());
+        $opts = $opts->withNoCallbacksAfterClientClose();
+        self::assertTrue($opts->noCallbacksAfterClientClose);
     }
 
     public function testSkipHostLookup(): void
     {
         $opts = new ConnectionOptions();
-        self::assertFalse($opts->isSkipHostLookup());
+        self::assertFalse($opts->skipHostLookup);
 
-        $opts->skipHostLookup();
-        self::assertTrue($opts->isSkipHostLookup());
+        $opts = $opts->withSkipHostLookup();
+        self::assertTrue($opts->skipHostLookup);
     }
 
     public function testSkipSubjectValidation(): void
     {
         $opts = new ConnectionOptions();
-        self::assertFalse($opts->isSkipSubjectValidation());
+        self::assertFalse($opts->skipSubjectValidation);
 
-        $opts->skipSubjectValidation();
-        self::assertTrue($opts->isSkipSubjectValidation());
+        $opts = $opts->withSkipSubjectValidation();
+        self::assertTrue($opts->skipSubjectValidation);
     }
 
     public function testCustomReconnectDelay(): void
     {
         $opts = new ConnectionOptions();
-        self::assertNull($opts->getCustomReconnectDelay());
+        self::assertNull($opts->customReconnectDelay);
 
         $cb = static fn(int $attempt): float => $attempt * 0.5;
-        $opts->customReconnectDelay($cb);
+        $opts = $opts->withCustomReconnectDelay($cb);
 
-        $result = $opts->getCustomReconnectDelay();
+        $result = $opts->customReconnectDelay;
         self::assertNotNull($result);
         self::assertSame(1.5, $result(3));
     }
@@ -84,19 +119,19 @@ final class ConnectionOptionsTest extends TestCase
     public function testSyncQueueLen(): void
     {
         $opts = new ConnectionOptions();
-        self::assertSame(65536, $opts->getSyncQueueLen());
+        self::assertSame(65536, $opts->syncQueueLen);
 
-        $opts->syncQueueLen(1024);
-        self::assertSame(1024, $opts->getSyncQueueLen());
+        $opts = $opts->withSyncQueueLen(1024);
+        self::assertSame(1024, $opts->syncQueueLen);
     }
 
     public function testPermissionErrOnSubscribe(): void
     {
         $opts = new ConnectionOptions();
-        self::assertFalse($opts->isPermissionErrOnSubscribe());
+        self::assertFalse($opts->permissionErrOnSubscribe);
 
-        $opts->permissionErrOnSubscribe();
-        self::assertTrue($opts->isPermissionErrOnSubscribe());
+        $opts = $opts->withPermissionErrOnSubscribe();
+        self::assertTrue($opts->permissionErrOnSubscribe);
     }
 
     public function testDefaultValues(): void
@@ -104,37 +139,69 @@ final class ConnectionOptionsTest extends TestCase
         $opts = new ConnectionOptions();
 
         // New options defaults
-        self::assertFalse($opts->isNoCallbacksAfterClientClose());
-        self::assertFalse($opts->isSkipHostLookup());
-        self::assertFalse($opts->isSkipSubjectValidation());
-        self::assertNull($opts->getCustomReconnectDelay());
-        self::assertSame(65536, $opts->getSyncQueueLen());
-        self::assertFalse($opts->isPermissionErrOnSubscribe());
+        self::assertFalse($opts->noCallbacksAfterClientClose);
+        self::assertFalse($opts->skipHostLookup);
+        self::assertFalse($opts->skipSubjectValidation);
+        self::assertNull($opts->customReconnectDelay);
+        self::assertSame(65536, $opts->syncQueueLen);
+        self::assertFalse($opts->permissionErrOnSubscribe);
 
         // Existing options defaults
-        self::assertSame(['nats://127.0.0.1:4222'], $opts->getServers());
-        self::assertNull($opts->getName());
-        self::assertNull($opts->getAuthenticator());
-        self::assertFalse($opts->isTlsEnabled());
-        self::assertSame(60, $opts->getMaxReconnects());
-        self::assertSame(2.0, $opts->getReconnectWait());
-        self::assertFalse($opts->isNoReconnect());
-        self::assertFalse($opts->isDontRandomize());
-        self::assertSame(2.0, $opts->getTimeout());
-        self::assertSame(120.0, $opts->getPingInterval());
-        self::assertSame(2, $opts->getMaxPingsOutstanding());
-        self::assertSame(30.0, $opts->getDrainTimeout());
-        self::assertNull($opts->getOnConnect());
-        self::assertNull($opts->getOnDisconnect());
-        self::assertNull($opts->getOnReconnect());
-        self::assertNull($opts->getOnClose());
-        self::assertNull($opts->getOnError());
-        self::assertFalse($opts->isNoEcho());
-        self::assertFalse($opts->isVerbose());
-        self::assertFalse($opts->isPedantic());
-        self::assertFalse($opts->isIgnoreDiscoveredServers());
-        self::assertSame('_INBOX', $opts->getInboxPrefix());
-        self::assertFalse($opts->isCompression());
-        self::assertNull($opts->getLogger());
+        self::assertSame(['nats://127.0.0.1:4222'], $opts->servers);
+        self::assertNull($opts->name);
+        self::assertNull($opts->authenticator);
+        self::assertFalse($opts->tlsEnabled);
+        self::assertSame(60, $opts->maxReconnects);
+        self::assertSame(2.0, $opts->reconnectWait);
+        self::assertFalse($opts->noReconnect);
+        self::assertFalse($opts->dontRandomize);
+        self::assertSame(2.0, $opts->timeout);
+        self::assertSame(120.0, $opts->pingInterval);
+        self::assertSame(2, $opts->maxPingsOutstanding);
+        self::assertSame(30.0, $opts->drainTimeout);
+        self::assertNull($opts->onConnect);
+        self::assertNull($opts->onDisconnect);
+        self::assertNull($opts->onReconnect);
+        self::assertNull($opts->onClose);
+        self::assertNull($opts->onError);
+        self::assertFalse($opts->noEcho);
+        self::assertFalse($opts->verbose);
+        self::assertFalse($opts->pedantic);
+        self::assertFalse($opts->ignoreDiscoveredServers);
+        self::assertSame('_INBOX', $opts->inboxPrefix);
+        self::assertFalse($opts->compression);
+        self::assertNull($opts->logger);
+    }
+
+    public function testWithersReturnNewInstance(): void
+    {
+        $opts = new ConnectionOptions();
+        $opts2 = $opts->withName('test');
+
+        self::assertNull($opts->name);
+        self::assertSame('test', $opts2->name);
+        self::assertNotSame($opts, $opts2);
+    }
+
+    public function testConstructorWithNamedArguments(): void
+    {
+        $opts = new ConnectionOptions(
+            name: 'my-app',
+            timeout: 5.0,
+            maxReconnects: 10,
+            noEcho: true,
+            inboxPrefix: '_MY_INBOX',
+        );
+
+        self::assertSame('my-app', $opts->name);
+        self::assertSame(5.0, $opts->timeout);
+        self::assertSame(10, $opts->maxReconnects);
+        self::assertTrue($opts->noEcho);
+        self::assertSame('_MY_INBOX', $opts->inboxPrefix);
+
+        // Non-specified values keep defaults
+        self::assertSame(['nats://127.0.0.1:4222'], $opts->servers);
+        self::assertSame(2.0, $opts->reconnectWait);
+        self::assertFalse($opts->verbose);
     }
 }

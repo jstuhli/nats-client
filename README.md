@@ -132,14 +132,13 @@ $conn = Connection::connect();
 // Multiple servers (automatic failover)
 $conn = Connection::connect(['nats://srv1:4222', 'nats://srv2:4222']);
 
-// With options
-$options = (new ConnectionOptions())
-    ->name('my-app')
-    ->timeout(5.0)
-    ->maxReconnects(10)
-    ->reconnectWait(1.0);
-
-$conn = Connection::connect('nats://localhost:4222', $options);
+// With options (named constructor arguments)
+$conn = Connection::connect('nats://localhost:4222', new ConnectionOptions(
+    name: 'my-app',
+    timeout: 5.0,
+    maxReconnects: 10,
+    reconnectWait: 1.0,
+));
 ```
 
 ### Core — Pub/Sub
@@ -190,36 +189,40 @@ $conn->publishMessage($msg);
 
 ```php
 // User/Password
-$options = (new ConnectionOptions())->userInfo('user', 'pass');
+$options = (new ConnectionOptions())->withUserInfo('user', 'pass');
 
 // Token
-$options = (new ConnectionOptions())->token('s3cr3t');
+$options = (new ConnectionOptions())->withToken('s3cr3t');
 
 // NKey (Ed25519)
-$options = (new ConnectionOptions())->nkey($nkeySeed);
+$options = (new ConnectionOptions())->withNkey($nkeySeed);
 
 // Credentials file
-$options = (new ConnectionOptions())->credentials('/path/to/user.creds');
+$options = (new ConnectionOptions())->withCredentials('/path/to/user.creds');
 
 // TLS
-$options = (new ConnectionOptions())
-    ->tls()
-    ->tlsCertificate('/path/to/cert.pem', '/path/to/key.pem')
-    ->tlsCaCertificate('/path/to/ca.pem');
+$options = new ConnectionOptions(
+    tlsEnabled: true,
+    tlsCertFile: '/path/to/cert.pem',
+    tlsKeyFile: '/path/to/key.pem',
+    tlsCaFiles: ['/path/to/ca.pem'],
+);
 ```
 
 ### Core — Events & Reconnect
 
 ```php
-$options = (new ConnectionOptions())
-    ->maxReconnects(-1)              // Infinite
-    ->reconnectWait(2.0)
-    ->reconnectJitter(0.5, 1.0)
-    ->reconnectBufferSize(8 * 1024 * 1024)
-    ->onConnect(fn(Connection $c) => echo "Connected to {$c->connectedUrl()}\n")
-    ->onDisconnect(fn(Connection $c) => echo "Disconnected!\n")
-    ->onReconnect(fn(Connection $c) => echo "Reconnected!\n")
-    ->onError(fn(Connection $c, \Throwable $e) => echo "Error: {$e->getMessage()}\n");
+$options = new ConnectionOptions(
+    maxReconnects: -1,              // Infinite
+    reconnectWait: 2.0,
+    reconnectJitter: 0.5,
+    reconnectJitterTls: 1.0,
+    reconnectBufferSize: 8 * 1024 * 1024,
+    onConnect: fn(Connection $c) => echo "Connected to {$c->connectedUrl()}\n",
+    onDisconnect: fn(Connection $c) => echo "Disconnected!\n",
+    onReconnect: fn(Connection $c) => echo "Reconnected!\n",
+    onError: fn(Connection $c, \Throwable $e) => echo "Error: {$e->getMessage()}\n",
+);
 ```
 
 ### JetStream — Streams
@@ -427,7 +430,7 @@ docker compose down     # Stop
 ```
 src/
 ├── Connection.php              # Main class — connect, pub/sub, request, event loop
-├── ConnectionOptions.php       # Fluent builder for connection options
+├── ConnectionOptions.php       # Immutable connection options (readonly, withers)
 ├── Subscription.php            # Sync/async subscriptions
 ├── Message.php                 # readonly — Subject, Data, ReplyTo, Headers
 ├── Headers.php                 # Header map (IteratorAggregate, Countable)
