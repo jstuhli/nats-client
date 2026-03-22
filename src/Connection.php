@@ -237,7 +237,7 @@ final class Connection
         }
 
         $this->status = ConnectionStatus::Closed;
-        $this->logger?->info('Connection closed');
+        $this->log('info', 'Connection closed');
         $this->flushWrite();
         $this->transport->close();
         $this->parser->reset();
@@ -251,7 +251,7 @@ final class Connection
 
     public function drain(): void
     {
-        $this->logger?->info('Draining connection');
+        $this->log('info', 'Draining connection');
         $this->status = ConnectionStatus::DrainingSubscriptions;
 
         // Unsubscribe all
@@ -580,7 +580,7 @@ final class Connection
                 $this->currentServerIndex = $idx;
                 $this->status = ConnectionStatus::Connected;
 
-                $this->logger?->info('Connected to {url}', ['url' => $url]);
+                $this->log('info', 'Connected to {url}', ['url' => $url]);
 
                 $handler = $this->options->getOnConnect();
                 if ($handler !== null) {
@@ -589,7 +589,10 @@ final class Connection
 
                 return;
             } catch (\Throwable $e) {
-                $this->logger?->warning('Failed to connect to {url}: {error}', ['url' => $url, 'error' => $e->getMessage()]);
+                $this->log('warning', 'Failed to connect to {url}: {error}', [
+                    'url' => $url,
+                    'error' => $e->getMessage(),
+                ]);
                 $lastError = $e;
                 continue;
             }
@@ -597,7 +600,7 @@ final class Connection
 
         $this->status = ConnectionStatus::Disconnected;
         $errorMsg = $lastError?->getMessage() ?? 'unknown error';
-        $this->logger?->error('Failed to connect to any NATS server: {error}', ['error' => $errorMsg]);
+        $this->log('error', 'Failed to connect to any NATS server: {error}', ['error' => $errorMsg]);
         throw new NatsException('Failed to connect to any NATS server: ' . $errorMsg);
     }
 
@@ -611,7 +614,7 @@ final class Connection
         $useTls = $scheme === 'tls' || $scheme === 'nats+tls' || $this->options->isTlsEnabled();
         $address = "tcp://{$host}:{$port}";
 
-        $this->logger?->debug('Attempting to connect to {url}', ['url' => $url]);
+        $this->log('debug', 'Attempting to connect to {url}', ['url' => $url]);
 
         $tlsContext = $useTls ? $this->options->getTlsContext() : null;
 
@@ -626,19 +629,20 @@ final class Connection
             throw new NatsException("Expected INFO, got: {$infoLine}");
         }
 
-        $this->serverInfo = ServerInfo::fromJson(substr($infoLine, 5));
-        $this->parser->setMaxPayload($this->serverInfo->maxPayload);
+        $serverInfo = ServerInfo::fromJson(substr($infoLine, 5));
+        $this->serverInfo = $serverInfo;
+        $this->parser->setMaxPayload($serverInfo->maxPayload);
 
         // TLS upgrade if server requires it but we connected plain
-        if ($this->serverInfo->tlsRequired && !$useTls) {
-            $this->logger?->debug('Upgrading to TLS');
+        if ($serverInfo->tlsRequired && !$useTls) {
+            $this->log('debug', 'Upgrading to TLS');
             $this->transport->upgradeTls($this->options->getTlsContext());
         }
 
         // Add discovered servers to pool
         if (!$this->options->isIgnoreDiscoveredServers()) {
             $newServers = 0;
-            foreach ($this->serverInfo->connectUrls as $discoveredUrl) {
+            foreach ($serverInfo->connectUrls as $discoveredUrl) {
                 $normalized = "nats://{$discoveredUrl}";
                 if (!in_array($normalized, $this->serverPool, true)) {
                     $this->serverPool[] = $normalized;
@@ -646,7 +650,7 @@ final class Connection
                 }
             }
             if ($newServers > 0) {
-                $this->logger?->debug('Discovered {count} new servers', ['count' => $newServers]);
+                $this->log('debug', 'Discovered {count} new servers', ['count' => $newServers]);
             }
         }
 
@@ -752,7 +756,7 @@ final class Connection
         $cmd = $this->writer->sub($subject, $sid, $queue);
         $this->writeToServer($cmd);
 
-        $this->logger?->debug('Subscribed to {subject} (sid={sid})', ['subject' => $subject, 'sid' => $sid]);
+        $this->log('debug', 'Subscribed to {subject} (sid={sid})', ['subject' => $subject, 'sid' => $sid]);
 
         return $sub;
     }
@@ -760,7 +764,7 @@ final class Connection
     /** @internal */
     public function unsubscribeSid(string $sid, ?int $maxMessages = null): void
     {
-        $this->logger?->debug('Unsubscribed sid={sid}', ['sid' => $sid]);
+        $this->log('debug', 'Unsubscribed sid={sid}', ['sid' => $sid]);
         $cmd = $this->writer->unsub($sid, $maxMessages);
         $this->writeToServer($cmd);
 
@@ -778,7 +782,7 @@ final class Connection
     /** @internal Report slow consumer to error handler (matches Go async error callback) */
     public function reportSlowConsumer(Subscription $sub): void
     {
-        $this->logger?->warning("Slow consumer on subject '{subject}'", ['subject' => $sub->subject()]);
+        $this->log('warning', "Slow consumer on subject '{subject}'", ['subject' => $sub->subject()]);
         $this->lastError = new SlowConsumerException(
             "Slow consumer on subject '{$sub->subject()}': messages dropped"
         );
@@ -918,7 +922,7 @@ final class Connection
     private function handleError(ServerOp $op): void
     {
         $errMsg = $op->payload ?? 'Unknown error';
-        $this->logger?->warning('Server error: {error}', ['error' => $errMsg]);
+        $this->log('warning', 'Server error: {error}', ['error' => $errMsg]);
         $this->lastError = new NatsException("Server error: {$errMsg}");
 
         $handler = $this->options->getOnError();
@@ -946,7 +950,7 @@ final class Connection
         $newInfo = ServerInfo::fromJson($op->payload);
         $this->serverInfo = $newInfo;
         $this->parser->setMaxPayload($newInfo->maxPayload);
-        $this->logger?->debug('Received updated server info');
+        $this->log('debug', 'Received updated server info');
 
         // Update server pool with newly discovered servers
         if (!$this->options->isIgnoreDiscoveredServers()) {
@@ -964,7 +968,7 @@ final class Connection
 
         // Lame duck mode
         if ($newInfo->lameDuckMode) {
-            $this->logger?->warning('Server entered lame duck mode');
+            $this->log('warning', 'Server entered lame duck mode');
             $handler = $this->options->getOnLameDuckMode();
             if ($handler !== null) {
                 $handler($this);
@@ -980,7 +984,7 @@ final class Connection
         }
 
         if ($this->pingsOut >= $this->options->getMaxPingsOutstanding()) {
-            $this->logger?->warning('Max pings outstanding reached, disconnecting');
+            $this->log('warning', 'Max pings outstanding reached, disconnecting');
             $this->handleDisconnect();
             return;
         }
@@ -1034,7 +1038,9 @@ final class Connection
                         $this->transport->write($cmd);
                     }
                     if ($this->subscriptions !== []) {
-                        $this->logger?->debug('Re-subscribed {count} subscriptions', ['count' => count($this->subscriptions)]);
+                        $this->log('debug', 'Re-subscribed {count} subscriptions', [
+                            'count' => count($this->subscriptions),
+                        ]);
                     }
 
                     // Flush reconnect buffer
@@ -1045,7 +1051,7 @@ final class Connection
 
                     $this->flushWrite();
 
-                    $this->logger?->info('Reconnected to {url}', ['url' => $url]);
+                    $this->log('info', 'Reconnected to {url}', ['url' => $url]);
 
                     $handler = $this->options->getOnReconnect();
                     if ($handler !== null) {
@@ -1054,7 +1060,10 @@ final class Connection
 
                     return;
                 } catch (\Throwable $e) {
-                    $this->logger?->warning('Reconnect to {url} failed: {error}', ['url' => $url, 'error' => $e->getMessage()]);
+                    $this->log('warning', 'Reconnect to {url} failed: {error}', [
+                        'url' => $url,
+                        'error' => $e->getMessage(),
+                    ]);
                     continue;
                 }
             }
@@ -1076,9 +1085,25 @@ final class Connection
             usleep((int) ($actualWait * 1_000_000));
         }
 
-        $this->logger?->error('Max reconnection attempts reached');
+        $this->log('error', 'Max reconnection attempts reached');
         $this->close();
         throw new NatsException('Max reconnection attempts reached');
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function log(string $level, string $message, array $context = []): void
+    {
+        if ($this->logger === null) {
+            return;
+        }
+
+        try {
+            $this->logger->log($level, $message, $context);
+        } catch (\Throwable) {
+            // Logging must never change connection behavior.
+        }
     }
 
     private function ensureConnected(): void

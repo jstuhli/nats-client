@@ -315,11 +315,16 @@ final class ConnectionOptions
         return $this;
     }
 
-    /**
-     * @param \Psr\Log\LoggerInterface $logger
-     */
+    /** Sets a PSR-3 logger for connection lifecycle events. */
     public function logger(object $logger): self
     {
+        $loggerInterface = \Psr\Log\LoggerInterface::class;
+        if (!interface_exists($loggerInterface) || !is_subclass_of($logger, $loggerInterface)) {
+            throw new \InvalidArgumentException(
+                "Logger must implement {$loggerInterface} (install psr/log to use logger support)"
+            );
+        }
+
         $this->logger = $logger;
         return $this;
     }
