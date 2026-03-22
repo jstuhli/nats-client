@@ -70,6 +70,7 @@ final class ObjectStore implements ObjectStoreInterface
      *
      * @param string $name Object name
      * @param mixed $stream Readable stream resource
+     * @throws NatsException If the stream is unreadable, the chunk size is invalid, or the upload fails
      */
     public function putStream(string $name, mixed $stream): ObjectInfo
     {
