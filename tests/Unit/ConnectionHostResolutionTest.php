@@ -84,14 +84,49 @@ final class ConnectionHostResolutionTest extends TestCase
 
     public function testSchemeAndPortArePreserved(): void
     {
-        $conn = $this->createConnectionWithPool(['tls://localhost:5222']);
-        $result = $this->invokeResolveUrl($conn, 'tls://localhost:5222');
+        // Use a non-TLS scheme so resolution still happens
+        $conn = $this->createConnectionWithPool(['nats://localhost:5222']);
+        $result = $this->invokeResolveUrl($conn, 'nats://localhost:5222');
 
         $this->assertNotEmpty($result);
         foreach ($result as $url) {
-            $this->assertStringStartsWith('tls://', $url);
+            $this->assertStringStartsWith('nats://', $url);
             $this->assertStringEndsWith(':5222', $url);
         }
+    }
+
+    public function testTlsSchemeSkipsResolution(): void
+    {
+        $conn = $this->createConnectionWithPool(['tls://localhost:4222']);
+        $result = $this->invokeResolveUrl($conn, 'tls://localhost:4222');
+
+        $this->assertSame(['tls://localhost:4222'], $result);
+    }
+
+    public function testNatsTlsSchemeSkipsResolution(): void
+    {
+        $conn = $this->createConnectionWithPool(['nats+tls://localhost:4222']);
+        $result = $this->invokeResolveUrl($conn, 'nats+tls://localhost:4222');
+
+        $this->assertSame(['nats+tls://localhost:4222'], $result);
+    }
+
+    public function testGlobalTlsEnabledSkipsResolution(): void
+    {
+        $options = new ConnectionOptions(tlsEnabled: true);
+
+        $ref = new \ReflectionClass(Connection::class);
+        $conn = $ref->newInstanceWithoutConstructor();
+
+        $optProp = $ref->getProperty('options');
+        $optProp->setValue($conn, $options);
+
+        $poolProp = $ref->getProperty('serverPool');
+        $poolProp->setValue($conn, ['nats://localhost:4222']);
+
+        $result = $this->invokeResolveUrl($conn, 'nats://localhost:4222');
+
+        $this->assertSame(['nats://localhost:4222'], $result);
     }
 
     public function testCredentialsArePreserved(): void

@@ -1188,12 +1188,18 @@ final class Connection
             return [$url];
         }
 
+        // Skip resolution for TLS URLs — rewriting hostname to IP would break
+        // certificate verification since peer_name is derived from the address.
+        $scheme = $parsed['scheme'] ?? 'nats';
+        if ($scheme === 'tls' || $scheme === 'nats+tls' || $this->options->tlsEnabled) {
+            return [$url];
+        }
+
         $ips = gethostbynamel($host);
         if ($ips === false || $ips === []) {
             return [$url];
         }
 
-        $scheme = $parsed['scheme'] ?? 'nats';
         $port = $parsed['port'] ?? 4222;
         $userInfo = '';
         if (isset($parsed['user'])) {
