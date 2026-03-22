@@ -126,6 +126,40 @@ final class ObjectStoreTest extends TestCase
         self::assertSame('', $content);
     }
 
+    public function testPutStream(): void
+    {
+        $store = $this->createStore();
+        $stream = fopen('php://temp', 'w+b');
+        self::assertNotFalse($stream);
+
+        fwrite($stream, 'streamed content');
+        rewind($stream);
+
+        $info = $store->putStream('stream.txt', $stream);
+
+        self::assertSame('stream.txt', $info->name);
+        self::assertSame(16, $info->size);
+        self::assertSame('streamed content', $store->getBytes('stream.txt'));
+
+        fclose($stream);
+    }
+
+    public function testPutStreamRejectsUnreadableStream(): void
+    {
+        $store = $this->createStore();
+        $stream = fopen('php://output', 'wb');
+        self::assertNotFalse($stream);
+
+        try {
+            $this->expectException(\Nats\NatsException::class);
+            $this->expectExceptionMessage('Stream for object unreadable.txt must be a readable stream resource');
+
+            $store->putStream('unreadable.txt', $stream);
+        } finally {
+            fclose($stream);
+        }
+    }
+
     public function testDelete(): void
     {
         $store = $this->createStore();

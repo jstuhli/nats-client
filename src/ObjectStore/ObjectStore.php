@@ -27,7 +27,7 @@ final class ObjectStore implements ObjectStoreInterface
         private readonly string $bucketName,
         int $chunkSize = 131072, // 128KB
     ) {
-        $this->chunkSize = $chunkSize;
+        $this->chunkSize = self::requirePositiveChunkSize($chunkSize);
     }
 
     public function put(ObjectMeta $meta, mixed $data): ObjectInfo
@@ -69,17 +69,18 @@ final class ObjectStore implements ObjectStoreInterface
      * Upload data from a stream resource, reading in chunks to avoid loading the entire content into memory.
      *
      * @param string $name Object name
-     * @param resource $stream Readable stream resource
+     * @param mixed $stream Readable stream resource
      */
     public function putStream(string $name, mixed $stream): ObjectInfo
     {
-        $chunkSize = $this->chunkSize;
+        self::assertReadableStream($stream, $name);
+        $chunkSize = self::requirePositiveChunkSize($this->chunkSize);
+        $jsStream = $this->js->stream("OBJ_{$this->bucketName}");
 
         // Purge old chunks if overwriting
         try {
             $existing = $this->getObjectInfo($name);
             if (!$existing->deleted && $existing->nuid !== '') {
-                $jsStream = $this->js->stream("OBJ_{$this->bucketName}");
                 $jsStream->purge(new \Nats\JetStream\Stream\StreamPurgeOptions(
                     filter: "\$O.{$this->bucketName}.C.{$existing->nuid}",
                 ));
@@ -94,45 +95,65 @@ final class ObjectStore implements ObjectStoreInterface
         $totalSize = 0;
         $chunks = 0;
 
-        while (!feof($stream)) {
-            $chunk = fread($stream, $chunkSize);
-            if ($chunk === false || $chunk === '') {
-                break;
+        try {
+            while (!feof($stream)) {
+                $chunk = fread($stream, $chunkSize);
+                if ($chunk === false) {
+                    throw new NatsException("Failed to read from stream for object: {$name}");
+                }
+                if ($chunk === '') {
+                    if (feof($stream)) {
+                        break;
+                    }
+
+                    throw new NatsException("Failed to read from stream for object: {$name}");
+                }
+
+                hash_update($hashCtx, $chunk);
+                $this->js->publish($chunkSubject, $chunk);
+                $totalSize += strlen($chunk);
+                $chunks++;
             }
-            hash_update($hashCtx, $chunk);
-            $this->js->publish($chunkSubject, $chunk);
-            $totalSize += strlen($chunk);
-            $chunks++;
+
+            if ($chunks === 0) {
+                $this->js->publish($chunkSubject, '');
+                $chunks = 1;
+            }
+
+            $digest = 'SHA-256=' . base64_encode(hash_final($hashCtx, true));
+
+            $info = new ObjectInfo(
+                name: $name,
+                bucket: $this->bucketName,
+                nuid: $nuid,
+                size: $totalSize,
+                chunks: $chunks,
+                digest: $digest,
+                deleted: false,
+                mtime: new \DateTimeImmutable(),
+            );
+
+            $metaSubject = "\$O.{$this->bucketName}.M.{$this->encodeName($name)}";
+            $metaHeaders = new Headers();
+            $metaHeaders->set('Nats-Rollup', 'sub');
+
+            $msg = new Message(
+                subject: $metaSubject,
+                data: json_encode($info->toArray(), JSON_THROW_ON_ERROR),
+                headers: $metaHeaders,
+            );
+            $this->js->publishMessage($msg);
+        } catch (\Throwable $e) {
+            try {
+                $jsStream->purge(new \Nats\JetStream\Stream\StreamPurgeOptions(
+                    filter: $chunkSubject,
+                ));
+            } catch (\Throwable) {
+                // Best effort cleanup for partial uploads.
+            }
+
+            throw $e;
         }
-
-        if ($chunks === 0) {
-            $this->js->publish($chunkSubject, '');
-            $chunks = 1;
-        }
-
-        $digest = 'SHA-256=' . base64_encode(hash_final($hashCtx, true));
-
-        $info = new ObjectInfo(
-            name: $name,
-            bucket: $this->bucketName,
-            nuid: $nuid,
-            size: $totalSize,
-            chunks: $chunks,
-            digest: $digest,
-            deleted: false,
-            mtime: new \DateTimeImmutable(),
-        );
-
-        $metaSubject = "\$O.{$this->bucketName}.M.{$this->encodeName($name)}";
-        $metaHeaders = new Headers();
-        $metaHeaders->set('Nats-Rollup', 'sub');
-
-        $msg = new Message(
-            subject: $metaSubject,
-            data: json_encode($info->toArray(), JSON_THROW_ON_ERROR),
-            headers: $metaHeaders,
-        );
-        $this->js->publishMessage($msg);
 
         return $info;
     }
@@ -475,7 +496,7 @@ final class ObjectStore implements ObjectStoreInterface
         array $metadata = [],
         ?int $chunkSize = null,
     ): ObjectInfo {
-        $chunkSize ??= $this->chunkSize;
+        $chunkSize = self::requirePositiveChunkSize($chunkSize ?? $this->chunkSize);
 
         // Purge old chunks if overwriting
         try {
@@ -562,5 +583,32 @@ final class ObjectStore implements ObjectStoreInterface
     {
         // Replace special chars that aren't valid in NATS subjects
         return str_replace(['/', ' '], ['_', '_'], $name);
+    }
+
+    /**
+     * @return int<1, max>
+     */
+    private static function requirePositiveChunkSize(int $chunkSize): int
+    {
+        if ($chunkSize <= 0) {
+            throw new NatsException('Chunk size must be greater than 0');
+        }
+
+        return $chunkSize;
+    }
+
+    /**
+     * @phpstan-assert resource $stream
+     */
+    private static function assertReadableStream(mixed $stream, string $name): void
+    {
+        if (!is_resource($stream) || get_resource_type($stream) !== 'stream') {
+            throw new NatsException("Stream for object {$name} must be a readable stream resource");
+        }
+
+        $mode = stream_get_meta_data($stream)['mode'];
+        if (!str_contains($mode, 'r') && !str_contains($mode, '+')) {
+            throw new NatsException("Stream for object {$name} must be a readable stream resource");
+        }
     }
 }
