@@ -82,7 +82,6 @@ final readonly class ConnectionOptions
 
     // --- Withers ---
 
-    /** @param list<string> $urls */
     public function withServers(string ...$urls): self
     {
         return clone($this, ['servers' => array_values($urls)]);
