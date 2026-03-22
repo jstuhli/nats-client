@@ -14,7 +14,7 @@ use Nats\Connection;
 use Nats\ConnectionOptions;
 
 $options = (new ConnectionOptions())
-    ->name('info-demo');
+    ->withName('info-demo');
 
 $conn = Connection::connect('nats://localhost:4222', $options);
 

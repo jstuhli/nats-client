@@ -206,7 +206,7 @@ final class SafeguardsTest extends TestCase
         $slowConsumerReported = false;
         $slowConsumerError = null;
 
-        $options = (new ConnectionOptions())->onError(function ($conn, $err) use (&$slowConsumerReported, &$slowConsumerError): void {
+        $options = (new ConnectionOptions())->withOnError(function ($conn, $err) use (&$slowConsumerReported, &$slowConsumerError): void {
             if ($err instanceof SlowConsumerException) {
                 $slowConsumerReported = true;
                 $slowConsumerError = $err;

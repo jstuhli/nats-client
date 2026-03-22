@@ -25,8 +25,8 @@ use Nats\JetStream\Stream\StreamConfig;
 // are delivered here instead of being thrown inline.
 
 $options = (new ConnectionOptions())
-    ->name('error-handling-demo')
-    ->onError(function (Connection $conn, \Throwable $err) {
+    ->withName('error-handling-demo')
+    ->withOnError(function (Connection $conn, \Throwable $err) {
         // Log the error, increment a metric, alert ops — whatever makes sense
         echo "[onError] {$err::class}: {$err->getMessage()}\n";
 
