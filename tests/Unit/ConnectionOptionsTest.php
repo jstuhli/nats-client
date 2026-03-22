@@ -147,4 +147,26 @@ final class ConnectionOptionsTest extends TestCase
         self::assertSame('test', $opts2->name);
         self::assertNotSame($opts, $opts2);
     }
+
+    public function testConstructorWithNamedArguments(): void
+    {
+        $opts = new ConnectionOptions(
+            name: 'my-app',
+            timeout: 5.0,
+            maxReconnects: 10,
+            noEcho: true,
+            inboxPrefix: '_MY_INBOX',
+        );
+
+        self::assertSame('my-app', $opts->name);
+        self::assertSame(5.0, $opts->timeout);
+        self::assertSame(10, $opts->maxReconnects);
+        self::assertTrue($opts->noEcho);
+        self::assertSame('_MY_INBOX', $opts->inboxPrefix);
+
+        // Non-specified values keep defaults
+        self::assertSame(['nats://127.0.0.1:4222'], $opts->servers);
+        self::assertSame(2.0, $opts->reconnectWait);
+        self::assertFalse($opts->verbose);
+    }
 }

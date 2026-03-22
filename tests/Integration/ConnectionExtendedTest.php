@@ -203,7 +203,7 @@ final class ConnectionExtendedTest extends TestCase
 
         $conn = Connection::connect(
             self::NATS_URL,
-            (new ConnectionOptions())->withLogger($logger),
+            new ConnectionOptions(logger: $logger),
         );
 
         self::assertTrue($conn->isConnected());

@@ -43,9 +43,11 @@ $conn->close();
 //     ->withCredentials('/path/to/user.creds');
 
 // 7. TLS
-$options = (new ConnectionOptions())
-    ->withTls()
-    ->withTlsCertificate('/path/to/client-cert.pem', '/path/to/client-key.pem')
-    ->withTlsCaCertificate('/path/to/ca.pem');
+$options = new ConnectionOptions(
+    tlsEnabled: true,
+    tlsCertFile: '/path/to/client-cert.pem',
+    tlsKeyFile: '/path/to/client-key.pem',
+    tlsCaFiles: ['/path/to/ca.pem'],
+);
 
 // $conn = Connection::connect('tls://localhost:4222', $options);

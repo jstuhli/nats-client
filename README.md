@@ -132,14 +132,13 @@ $conn = Connection::connect();
 // Multiple servers (automatic failover)
 $conn = Connection::connect(['nats://srv1:4222', 'nats://srv2:4222']);
 
-// With options
-$options = (new ConnectionOptions())
-    ->withName('my-app')
-    ->withTimeout(5.0)
-    ->withMaxReconnects(10)
-    ->withReconnectWait(1.0);
-
-$conn = Connection::connect('nats://localhost:4222', $options);
+// With options (named constructor arguments)
+$conn = Connection::connect('nats://localhost:4222', new ConnectionOptions(
+    name: 'my-app',
+    timeout: 5.0,
+    maxReconnects: 10,
+    reconnectWait: 1.0,
+));
 ```
 
 ### Core — Pub/Sub
@@ -202,24 +201,28 @@ $options = (new ConnectionOptions())->withNkey($nkeySeed);
 $options = (new ConnectionOptions())->withCredentials('/path/to/user.creds');
 
 // TLS
-$options = (new ConnectionOptions())
-    ->withTls()
-    ->withTlsCertificate('/path/to/cert.pem', '/path/to/key.pem')
-    ->withTlsCaCertificate('/path/to/ca.pem');
+$options = new ConnectionOptions(
+    tlsEnabled: true,
+    tlsCertFile: '/path/to/cert.pem',
+    tlsKeyFile: '/path/to/key.pem',
+    tlsCaFiles: ['/path/to/ca.pem'],
+);
 ```
 
 ### Core — Events & Reconnect
 
 ```php
-$options = (new ConnectionOptions())
-    ->withMaxReconnects(-1)              // Infinite
-    ->withReconnectWait(2.0)
-    ->withReconnectJitter(0.5, 1.0)
-    ->withReconnectBufferSize(8 * 1024 * 1024)
-    ->withOnConnect(fn(Connection $c) => echo "Connected to {$c->connectedUrl()}\n")
-    ->withOnDisconnect(fn(Connection $c) => echo "Disconnected!\n")
-    ->withOnReconnect(fn(Connection $c) => echo "Reconnected!\n")
-    ->withOnError(fn(Connection $c, \Throwable $e) => echo "Error: {$e->getMessage()}\n");
+$options = new ConnectionOptions(
+    maxReconnects: -1,              // Infinite
+    reconnectWait: 2.0,
+    reconnectJitter: 0.5,
+    reconnectJitterTls: 1.0,
+    reconnectBufferSize: 8 * 1024 * 1024,
+    onConnect: fn(Connection $c) => echo "Connected to {$c->connectedUrl()}\n",
+    onDisconnect: fn(Connection $c) => echo "Disconnected!\n",
+    onReconnect: fn(Connection $c) => echo "Reconnected!\n",
+    onError: fn(Connection $c, \Throwable $e) => echo "Error: {$e->getMessage()}\n",
+);
 ```
 
 ### JetStream — Streams

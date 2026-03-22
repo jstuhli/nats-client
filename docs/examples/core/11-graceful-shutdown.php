@@ -86,8 +86,7 @@ $conn->close();
 // If subscriptions take too long to drain, the timeout kicks in
 // and the connection closes anyway.
 
-$opts = (new ConnectionOptions())
-    ->withDrainTimeout(5.0); // Max 5 seconds to drain
+$opts = new ConnectionOptions(drainTimeout: 5.0);
 
 $conn = Connection::connect('nats://localhost:4222', $opts);
 $conn->subscribe('slow.worker', function ($msg) {
@@ -100,14 +99,15 @@ $conn->drain();
 // it sends a lame-duck-mode notification. The recommended response
 // is to drain and reconnect to a different server.
 
-$opts = (new ConnectionOptions())
-    ->withOnLameDuckMode(function (Connection $conn) {
+$opts = new ConnectionOptions(
+    onLameDuckMode: function (Connection $conn) {
         echo "[LAME DUCK] Server is shutting down — draining ...\n";
         $conn->drain();
-    })
-    ->withOnClose(function (Connection $conn) {
+    },
+    onClose: function (Connection $conn) {
         echo "[CLOSED] Goodbye.\n";
-    });
+    },
+);
 
 $conn = Connection::connect('nats://localhost:4222', $opts);
 // In real life the lame duck callback fires automatically when the
@@ -119,8 +119,7 @@ $conn->close();
 
 $statusLog = [];
 
-$opts = (new ConnectionOptions())
-    ->withName('status-demo');
+$opts = new ConnectionOptions(name: 'status-demo');
 
 $conn = Connection::connect('nats://localhost:4222', $opts);
 

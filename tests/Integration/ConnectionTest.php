@@ -30,7 +30,7 @@ final class ConnectionTest extends TestCase
 
     public function testConnectWithName(): void
     {
-        $options = (new ConnectionOptions())->withName('test-app');
+        $options = new ConnectionOptions(name: 'test-app');
         $conn = Connection::connect(self::NATS_URL, $options);
 
         self::assertTrue($conn->isConnected());
@@ -56,7 +56,7 @@ final class ConnectionTest extends TestCase
     public function testConnectSkipsMalformedUrlWhenValidServerIsAvailable(): void
     {
         $badUrl = 'nats://user@:4222';
-        $options = (new ConnectionOptions())->withDontRandomize();
+        $options = new ConnectionOptions(dontRandomize: true);
 
         $conn = Connection::connect([$badUrl, self::NATS_URL], $options);
 
