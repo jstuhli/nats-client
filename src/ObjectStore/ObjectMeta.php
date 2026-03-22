@@ -17,7 +17,11 @@ readonly class ObjectMeta
         /** @var array<string, string> */
         public array $metadata = [],
         public ?int $chunkSize = null,
-    ) {}
+    ) {
+        if ($this->chunkSize !== null && $this->chunkSize <= 0) {
+            throw new \InvalidArgumentException('chunkSize must be greater than 0');
+        }
+    }
 
     /**
      * @return array<string, mixed>

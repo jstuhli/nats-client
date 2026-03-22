@@ -21,5 +21,9 @@ readonly class ObjectStoreConfig
         public array $metadata = [],
         public ?int $maxChunkSize = null,
         public bool $compression = false,
-    ) {}
+    ) {
+        if ($this->maxChunkSize !== null && $this->maxChunkSize <= 0) {
+            throw new \InvalidArgumentException('maxChunkSize must be greater than 0');
+        }
+    }
 }

@@ -121,4 +121,12 @@ final class ObjectMetaTest extends TestCase
         self::assertSame([], $meta->metadata);
         self::assertNull($meta->chunkSize);
     }
+
+    public function testConstructorRejectsNonPositiveChunkSize(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('chunkSize must be greater than 0');
+
+        new ObjectMeta(name: 'invalid', chunkSize: 0);
+    }
 }
