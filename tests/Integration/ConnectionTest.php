@@ -43,6 +43,29 @@ final class ConnectionTest extends TestCase
         Connection::connect('nats://127.0.0.1:19999');
     }
 
+    public function testConnectFailsFastWithMalformedUrl(): void
+    {
+        $badUrl = 'nats://user@:4222';
+
+        $this->expectException(\Nats\NatsException::class);
+        $this->expectExceptionMessage("Failed to connect to any NATS server: Invalid server URL: {$badUrl}");
+
+        Connection::connect($badUrl);
+    }
+
+    public function testConnectSkipsMalformedUrlWhenValidServerIsAvailable(): void
+    {
+        $badUrl = 'nats://user@:4222';
+        $options = (new ConnectionOptions())->dontRandomize();
+
+        $conn = Connection::connect([$badUrl, self::NATS_URL], $options);
+
+        self::assertTrue($conn->isConnected());
+        self::assertSame(self::NATS_URL, $conn->connectedUrl());
+
+        $conn->close();
+    }
+
     public function testFlush(): void
     {
         $conn = Connection::connect(self::NATS_URL);
