@@ -51,6 +51,173 @@ readonly class StreamConfig
         public ?int $subjectDeleteMarkerTtl = null,
     ) {}
 
+    // --- Withers ---
+
+    /** @param list<string> $subjects */
+    public function withSubjects(array $subjects): self
+    {
+        return clone($this, ['subjects' => $subjects]);
+    }
+
+    public function withDescription(?string $description): self
+    {
+        return clone($this, ['description' => $description]);
+    }
+
+    public function withRetention(RetentionPolicy $retention): self
+    {
+        return clone($this, ['retention' => $retention]);
+    }
+
+    public function withMaxAge(?int $maxAge): self
+    {
+        return clone($this, ['maxAge' => $maxAge]);
+    }
+
+    public function withMaxBytes(?int $maxBytes): self
+    {
+        return clone($this, ['maxBytes' => $maxBytes]);
+    }
+
+    public function withMaxMsgSize(?int $maxMsgSize): self
+    {
+        return clone($this, ['maxMsgSize' => $maxMsgSize]);
+    }
+
+    public function withMaxMessages(?int $maxMessages): self
+    {
+        return clone($this, ['maxMessages' => $maxMessages]);
+    }
+
+    public function withMaxMessagesPerSubject(?int $maxMessagesPerSubject): self
+    {
+        return clone($this, ['maxMessagesPerSubject' => $maxMessagesPerSubject]);
+    }
+
+    public function withMaxConsumers(?int $maxConsumers): self
+    {
+        return clone($this, ['maxConsumers' => $maxConsumers]);
+    }
+
+    public function withStorage(StorageType $storage): self
+    {
+        return clone($this, ['storage' => $storage]);
+    }
+
+    public function withDiscard(DiscardPolicy $discard): self
+    {
+        return clone($this, ['discard' => $discard]);
+    }
+
+    public function withReplicas(int $replicas): self
+    {
+        return clone($this, ['replicas' => $replicas]);
+    }
+
+    public function withNoAck(bool $noAck = true): self
+    {
+        return clone($this, ['noAck' => $noAck]);
+    }
+
+    public function withDenyDelete(bool $denyDelete = true): self
+    {
+        return clone($this, ['denyDelete' => $denyDelete]);
+    }
+
+    public function withDenyPurge(bool $denyPurge = true): self
+    {
+        return clone($this, ['denyPurge' => $denyPurge]);
+    }
+
+    public function withAllowRollup(bool $allowRollup = true): self
+    {
+        return clone($this, ['allowRollup' => $allowRollup]);
+    }
+
+    public function withCompression(StoreCompression $compression): self
+    {
+        return clone($this, ['compression' => $compression]);
+    }
+
+    public function withFirstSequence(?int $firstSequence): self
+    {
+        return clone($this, ['firstSequence' => $firstSequence]);
+    }
+
+    public function withMirror(?StreamSource $mirror): self
+    {
+        return clone($this, ['mirror' => $mirror]);
+    }
+
+    /** @param list<StreamSource> $sources */
+    public function withSources(array $sources): self
+    {
+        return clone($this, ['sources' => $sources]);
+    }
+
+    public function withRePublish(?RePublish $rePublish): self
+    {
+        return clone($this, ['rePublish' => $rePublish]);
+    }
+
+    public function withPlacement(?Placement $placement): self
+    {
+        return clone($this, ['placement' => $placement]);
+    }
+
+    /** @param array<string, string> $metadata */
+    public function withMetadata(array $metadata): self
+    {
+        return clone($this, ['metadata' => $metadata]);
+    }
+
+    public function withSealed(bool $sealed = true): self
+    {
+        return clone($this, ['sealed' => $sealed]);
+    }
+
+    public function withAllowDirect(bool $allowDirect = true): self
+    {
+        return clone($this, ['allowDirect' => $allowDirect]);
+    }
+
+    public function withMirrorDirect(bool $mirrorDirect = true): self
+    {
+        return clone($this, ['mirrorDirect' => $mirrorDirect]);
+    }
+
+    public function withDiscardNewPerSubject(bool $discardNewPerSubject = true): self
+    {
+        return clone($this, ['discardNewPerSubject' => $discardNewPerSubject]);
+    }
+
+    public function withDuplicateWindow(?int $duplicateWindow): self
+    {
+        return clone($this, ['duplicateWindow' => $duplicateWindow]);
+    }
+
+    public function withSubjectTransform(?SubjectTransform $subjectTransform): self
+    {
+        return clone($this, ['subjectTransform' => $subjectTransform]);
+    }
+
+    public function withConsumerLimits(?StreamConsumerLimits $consumerLimits): self
+    {
+        return clone($this, ['consumerLimits' => $consumerLimits]);
+    }
+
+    public function withAllowMsgTtl(bool $allowMsgTtl = true): self
+    {
+        return clone($this, ['allowMsgTtl' => $allowMsgTtl]);
+    }
+
+    public function withSubjectDeleteMarkerTtl(?int $subjectDeleteMarkerTtl): self
+    {
+        return clone($this, ['subjectDeleteMarkerTtl' => $subjectDeleteMarkerTtl]);
+    }
+
+    // --- Serialization ---
+
     /**
      * @return array<string, mixed>
      */
