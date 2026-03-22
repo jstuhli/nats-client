@@ -4,11 +4,43 @@ declare(strict_types=1);
 
 namespace Nats\Tests\Unit;
 
+require_once __DIR__ . '/PsrLoggerStub.php';
+
 use Nats\ConnectionOptions;
 use PHPUnit\Framework\TestCase;
 
 final class ConnectionOptionsTest extends TestCase
 {
+    public function testLoggerRequiresPsrLoggerInterface(): void
+    {
+        $opts = new ConnectionOptions();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Logger must implement Psr\\Log\\LoggerInterface');
+
+        $opts->logger(new class {});
+    }
+
+    public function testLoggerAcceptsPsrLoggerInterface(): void
+    {
+        $opts = new ConnectionOptions();
+        $logger = new class implements \Psr\Log\LoggerInterface {
+            public function emergency(string|\Stringable $message, array $context = []): void {}
+            public function alert(string|\Stringable $message, array $context = []): void {}
+            public function critical(string|\Stringable $message, array $context = []): void {}
+            public function error(string|\Stringable $message, array $context = []): void {}
+            public function warning(string|\Stringable $message, array $context = []): void {}
+            public function notice(string|\Stringable $message, array $context = []): void {}
+            public function info(string|\Stringable $message, array $context = []): void {}
+            public function debug(string|\Stringable $message, array $context = []): void {}
+            public function log(mixed $level, string|\Stringable $message, array $context = []): void {}
+        };
+
+        $opts->logger($logger);
+
+        self::assertSame($logger, $opts->getLogger());
+    }
+
     public function testNoCallbacksAfterClientClose(): void
     {
         $opts = new ConnectionOptions();
@@ -103,5 +135,6 @@ final class ConnectionOptionsTest extends TestCase
         self::assertFalse($opts->isIgnoreDiscoveredServers());
         self::assertSame('_INBOX', $opts->getInboxPrefix());
         self::assertFalse($opts->isCompression());
+        self::assertNull($opts->getLogger());
     }
 }

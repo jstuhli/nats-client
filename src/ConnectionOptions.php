@@ -70,7 +70,8 @@ final class ConnectionOptions
     private bool $permissionErrOnSubscribe = false;
 
     // Logging
-    private ?object $logger = null; // PSR-3 LoggerInterface
+    /** @var \Psr\Log\LoggerInterface|null */
+    private ?object $logger = null;
 
     public function servers(string ...$urls): self
     {
@@ -314,8 +315,16 @@ final class ConnectionOptions
         return $this;
     }
 
+    /** Sets a PSR-3 logger for connection lifecycle events. */
     public function logger(object $logger): self
     {
+        $loggerInterface = \Psr\Log\LoggerInterface::class;
+        if (!interface_exists($loggerInterface) || !is_subclass_of($logger, $loggerInterface)) {
+            throw new \InvalidArgumentException(
+                "Logger must implement {$loggerInterface} (install psr/log to use logger support)"
+            );
+        }
+
         $this->logger = $logger;
         return $this;
     }
@@ -455,6 +464,7 @@ final class ConnectionOptions
     public function isIgnoreDiscoveredServers(): bool { return $this->ignoreDiscoveredServers; }
     public function getInboxPrefix(): string { return $this->inboxPrefix; }
     public function isCompression(): bool { return $this->compression; }
+    /** @return \Psr\Log\LoggerInterface|null */
     public function getLogger(): ?object { return $this->logger; }
     public function isNoCallbacksAfterClientClose(): bool { return $this->noCallbacksAfterClientClose; }
     public function isSkipHostLookup(): bool { return $this->skipHostLookup; }
