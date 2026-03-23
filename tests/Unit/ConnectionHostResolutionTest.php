@@ -46,6 +46,13 @@ final class ConnectionHostResolutionTest extends TestCase
         return $prop->getValue($conn);
     }
 
+    private function getResolvedHostnames(Connection $conn): array
+    {
+        $prop = new \ReflectionProperty(Connection::class, 'resolvedHostnames');
+
+        return $prop->getValue($conn);
+    }
+
     public function testIpAddressIsNotResolved(): void
     {
         $conn = $this->createConnectionWithPool(['nats://10.0.0.1:4222']);
@@ -84,34 +91,49 @@ final class ConnectionHostResolutionTest extends TestCase
 
     public function testSchemeAndPortArePreserved(): void
     {
-        // Use a non-TLS scheme so resolution still happens
-        $conn = $this->createConnectionWithPool(['nats://localhost:5222']);
-        $result = $this->invokeResolveUrl($conn, 'nats://localhost:5222');
+        $conn = $this->createConnectionWithPool(['tls://localhost:5222']);
+        $result = $this->invokeResolveUrl($conn, 'tls://localhost:5222');
 
         $this->assertNotEmpty($result);
         foreach ($result as $url) {
-            $this->assertStringStartsWith('nats://', $url);
+            $this->assertStringStartsWith('tls://', $url);
             $this->assertStringEndsWith(':5222', $url);
         }
     }
 
-    public function testTlsSchemeSkipsResolution(): void
+    public function testTlsSchemeIsResolved(): void
     {
         $conn = $this->createConnectionWithPool(['tls://localhost:4222']);
         $result = $this->invokeResolveUrl($conn, 'tls://localhost:4222');
 
-        $this->assertSame(['tls://localhost:4222'], $result);
+        $this->assertNotEmpty($result);
+        foreach ($result as $url) {
+            $parsed = parse_url($url);
+            $this->assertSame('tls', $parsed['scheme']);
+            $this->assertNotFalse(
+                filter_var($parsed['host'], FILTER_VALIDATE_IP),
+                "Expected IP address in resolved URL, got: {$parsed['host']}"
+            );
+        }
     }
 
-    public function testNatsTlsSchemeSkipsResolution(): void
+    public function testNatsTlsSchemeIsResolved(): void
     {
         $conn = $this->createConnectionWithPool(['nats+tls://localhost:4222']);
         $result = $this->invokeResolveUrl($conn, 'nats+tls://localhost:4222');
 
-        $this->assertSame(['nats+tls://localhost:4222'], $result);
+        $this->assertNotEmpty($result);
+        foreach ($result as $url) {
+            $parsed = parse_url($url);
+            // parse_url treats "nats+tls" as scheme
+            $this->assertNotFalse(
+                filter_var($parsed['host'], FILTER_VALIDATE_IP),
+                "Expected IP address in resolved URL, got: {$parsed['host']}"
+            );
+        }
     }
 
-    public function testGlobalTlsEnabledSkipsResolution(): void
+    public function testGlobalTlsEnabledIsResolved(): void
     {
         $options = new ConnectionOptions(tlsEnabled: true);
 
@@ -126,7 +148,14 @@ final class ConnectionHostResolutionTest extends TestCase
 
         $result = $this->invokeResolveUrl($conn, 'nats://localhost:4222');
 
-        $this->assertSame(['nats://localhost:4222'], $result);
+        $this->assertNotEmpty($result);
+        foreach ($result as $url) {
+            $parsed = parse_url($url);
+            $this->assertNotFalse(
+                filter_var($parsed['host'], FILTER_VALIDATE_IP),
+                "Expected IP address in resolved URL, got: {$parsed['host']}"
+            );
+        }
     }
 
     public function testCredentialsArePreserved(): void
@@ -229,5 +258,26 @@ final class ConnectionHostResolutionTest extends TestCase
         $result = $this->invokeResolveUrl($conn, $url);
 
         $this->assertSame([$url], $result);
+    }
+
+    public function testResolvedHostnamesMapIsPopulated(): void
+    {
+        $conn = $this->createConnectionWithPool(['nats://localhost:4222']);
+        $this->invokeResolveUrl($conn, 'nats://localhost:4222');
+
+        $map = $this->getResolvedHostnames($conn);
+
+        $this->assertNotEmpty($map);
+        $this->assertSame('localhost', $map['127.0.0.1:4222']);
+    }
+
+    public function testResolvedHostnamesMapNotPopulatedForIpAddress(): void
+    {
+        $conn = $this->createConnectionWithPool(['nats://10.0.0.1:4222']);
+        $this->invokeResolveUrl($conn, 'nats://10.0.0.1:4222');
+
+        $map = $this->getResolvedHostnames($conn);
+
+        $this->assertEmpty($map);
     }
 }

@@ -63,6 +63,9 @@ final class Connection
     // Reconnect buffer
     private string $reconnectBuffer = '';
 
+    /** @var array<string, string> Maps "ip:port" to original hostname */
+    private array $resolvedHostnames = [];
+
     private function __construct() {}
 
     /**
@@ -638,6 +641,9 @@ final class Connection
         $this->log('debug', 'Attempting to connect to {url}', ['url' => $url]);
 
         $tlsContext = $useTls ? $this->options->getTlsContext() : null;
+        if ($tlsContext !== null && isset($this->resolvedHostnames["{$host}:{$port}"])) {
+            $tlsContext['peer_name'] = $this->resolvedHostnames["{$host}:{$port}"];
+        }
 
         $this->transport->connect($address, $this->options->timeout, $tlsContext);
         $this->transport->setTimeout($this->options->timeout);
@@ -657,7 +663,11 @@ final class Connection
         // TLS upgrade if server requires it but we connected plain
         if ($serverInfo->tlsRequired && !$useTls) {
             $this->log('debug', 'Upgrading to TLS');
-            $this->transport->upgradeTls($this->options->getTlsContext());
+            $upgradeContext = $this->options->getTlsContext();
+            if (isset($this->resolvedHostnames["{$host}:{$port}"])) {
+                $upgradeContext['peer_name'] = $this->resolvedHostnames["{$host}:{$port}"];
+            }
+            $this->transport->upgradeTls($upgradeContext);
         }
 
         // Add discovered servers to pool
@@ -1188,18 +1198,14 @@ final class Connection
             return [$url];
         }
 
-        // Skip resolution for TLS URLs — rewriting hostname to IP would break
-        // certificate verification since peer_name is derived from the address.
-        $scheme = $parsed['scheme'] ?? 'nats';
-        if ($scheme === 'tls' || $scheme === 'nats+tls' || $this->options->tlsEnabled) {
-            return [$url];
-        }
-
         $ips = gethostbynamel($host);
         if ($ips === false || $ips === []) {
             return [$url];
         }
 
+        $this->log('debug', 'Resolved {host} to {count} IP(s)', ['host' => $host, 'count' => count($ips)]);
+
+        $scheme = $parsed['scheme'] ?? 'nats';
         $port = $parsed['port'] ?? 4222;
         $userInfo = '';
         if (isset($parsed['user'])) {
@@ -1212,6 +1218,7 @@ final class Connection
 
         $urls = [];
         foreach ($ips as $ip) {
+            $this->resolvedHostnames["{$ip}:{$port}"] = $host;
             $urls[] = "{$scheme}://{$userInfo}{$ip}:{$port}";
         }
 
